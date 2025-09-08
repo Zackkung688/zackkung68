@@ -158,7 +158,7 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
 
     local embed = {
         title = "# GAME IS COMPLETED?!🍀🎮",
-        color = ff0033,
+        color = 0xff0000,
         fields = {
             { name = "👤 Player", value = LocalPlayer.Name, inline = false },
             {
