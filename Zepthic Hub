@@ -133,7 +133,7 @@ discordWebhook.getRewards = function()
                 elseif name:find("exp") then
                     icon = "⭐ "
                 elseif name:find("rccells") or name:find("cell") then
-                    icon = "🔋 "
+                    icon = "🩸 "
                 elseif name:find("portal") then
                     icon = "🌀 "
                 else
@@ -157,14 +157,14 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
     local rewardText = (#rewardList > 0) and table.concat(rewardList, "\n") or "❌ No Rewards"
 
     local embed = {
-        title = "# GAME COMPLETED! 🎮",
-        color = 0x00ffcc,
+        title = "# GAME IS COMPLETED?!🍀🎮",
+        color = ff0033,
         fields = {
             { name = "👤 Player", value = LocalPlayer.Name, inline = false },
             {
                 name = "🏆 Current Stats",
                 value = string.format(
-                    "**Map:** %s\n**Time:** %s\n💎 Gems: **%s**\n🪙 Gold: **%s**\n🔋 RC.Cells: **%s**",
+                    "**Map:** %s\n**Time:** %s\n💎 Gems: **%s**\n🪙 Gold: **%s**\n🩸 RC.Cells: **%s**",
                     mapName,
                     playTime,
                     tostring(resultData.gems),
