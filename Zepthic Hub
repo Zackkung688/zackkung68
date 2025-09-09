@@ -306,19 +306,20 @@ local function mergeRewardsWithItems(rewardList, items)
     return merged
 end
 
--- ฟังก์ชันส่ง Discord
 discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTime)
     if not Settings.DiscordEnabled or not webhookSupported then
         return
     end
 
-    -- ดึง inventory ปัจจุบัน
-    local items = discordWebhook.getItems()
+    -- ✅ ดึงค่า Total Damage / Takedowns จาก leaderstats
+    local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
+    local totalDmg = leaderstats and leaderstats:FindFirstChild("Total Damage") and leaderstats["Total Damage"].Value or 0
+    local takedowns = leaderstats and leaderstats:FindFirstChild("Takedowns") and leaderstats.Takedowns.Value or 0
 
-    -- รวม RewardsShow + Items
+    -- รวม Rewards + Items
+    local items = discordWebhook.getItems()
     local mergedRewards = mergeRewardsWithItems(rewardList, items)
 
-    -- ฟอร์แมตข้อความ
     local formattedRewards = {}
     for name, data in pairs(mergedRewards) do
         if data.gained > 0 then
@@ -339,14 +340,12 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
             {
                 name = "⏱️ Results x ข้อมูลที่เล่น",
                 value = string.format(
-                    "+ [%s] %s\n+ Wave %s\n+ Total Time: %s\n+ Total DMG: %s\n+ Eliminations: %s\n+ Total Money: %s",
+                    "+ [%s] %s\n+ Total Time: %s\n+ Total DMG: %s\n+ Takedowns: %s",
                     resultData.mode or "Story",
                     mapName,
-                    tostring(resultData.wave or "?"),
                     playTime,
-                    tostring(resultData.totalDmg or 0),
-                    tostring(resultData.kills or 0),
-                    tostring(resultData.money or 0)
+                    tostring(totalDmg),
+                    tostring(takedowns)
                 ),
                 inline = false
             },
@@ -360,6 +359,7 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
         timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
     }
 
+    -- เพิ่ม Gems / Golds / Traits
     local extraFields = {
         { name = "💎 Gems", value = tostring(resultData.gems), inline = true },
         { name = "🪙 Golds", value = tostring(resultData.golds), inline = true },
