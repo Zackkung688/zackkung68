@@ -258,7 +258,24 @@ local webhookSupported = http_request ~= nil
 local lastSentTime = 0
 local COOLDOWN_TIME = 15 -- วินาที
 
--- ฟังก์ชันแปลง RewardsShow เป็น text (รอให้ข้อมูลอัพเดต)
+-- ฟังก์ชันดึง Result (ค่าอัพเดตล่าสุด)
+discordWebhook.getPlayerData = function()
+    local dataPath = replicated:FindFirstChild("Player_Data")
+    if not dataPath then return {} end
+
+    local myData = dataPath:FindFirstChild(LocalPlayer.Name)
+    if not myData then return {} end
+    local stats = myData:FindFirstChild("Data")
+    if not stats then return {} end
+
+    return {
+        gems = stats:FindFirstChild("Gem") and stats.Gem.Value or 0,
+        golds = stats:FindFirstChild("Gold") and stats.Gold.Value or 0,
+        rcCells = stats:FindFirstChild("RCCells") and stats.RCCells.Value or 0
+    }
+end
+
+-- ฟังก์ชันแปลง RewardsShow เป็น text พร้อม emoji (รอให้ข้อมูลอัพเดต)
 discordWebhook.getRewards = function()
     local rewards = {}
     if not LocalPlayer:FindFirstChild("RewardsShow") then return rewards end
@@ -270,8 +287,24 @@ discordWebhook.getRewards = function()
         if folder:IsA("Folder") then
             local amount = folder:FindFirstChild("Amount")
             if amount and (amount:IsA("IntValue") or amount:IsA("NumberValue")) and amount.Value > 0 then
-                local name = folder.Name
-                table.insert(rewards, "x" .. amount.Value .. " " .. name)
+                local icon = ""
+                local name = folder.Name:lower()
+
+                if name:find("gem") then
+                    icon = "💎 "
+                elseif name:find("gold") then
+                    icon = "🪙 "
+                elseif name:find("exp") then
+                    icon = "⭐ "
+                elseif name:find("rccells") or name:find("cell") then
+                    icon = "🩸 "
+                elseif name:find("portal") then
+                    icon = "🌀 "
+                else
+                    icon = "🎁 "
+                end
+
+                table.insert(rewards, icon .. "x" .. amount.Value .. " " .. folder.Name)
             end
         end
     end
@@ -279,48 +312,33 @@ discordWebhook.getRewards = function()
     return rewards
 end
 
--- ฟังก์ชันส่ง Discord Embed - Updated with Fall Currency
+-- ฟังก์ชันส่ง Discord Embed
 discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTime)
-    print("🔍 เริ่มส่ง webhook...")
-    print("Debug - DiscordEnabled:", Settings.DiscordEnabled)
-    print("Debug - webhookSupported:", webhookSupported)
-    
     if not Settings.DiscordEnabled or not webhookSupported then
-        print("❌ Webhook ไม่ถูกเปิดใช้งานหรือไม่รองรับ")
         return
     end
 
-    -- Safety checks
-    resultData = resultData or {}
-    rewardList = rewardList or {}
-    mapName = mapName or "Unknown Map"
-    playTime = playTime or "00:00"
-    
-    local rewardText = "No Rewards"
-    if type(rewardList) == "table" and #rewardList > 0 then
-        rewardText = table.concat(rewardList, "\n")
-    end
+    local rewardText = (#rewardList > 0) and table.concat(rewardList, "\n") or "❌ No Rewards"
 
     local embed = {
-        title = "GAME IS COMPLETED",
+        title = "# GAME IS COMPLETED?!🍀🎮",
         color = 0x99ff33,
         fields = {
-            { name = "Player", value = LocalPlayer.Name, inline = false },
+            { name = "👤 Player", value = LocalPlayer.Name, inline = false },
             {
-                name = "Current Stats",
+                name = "🏆 Current Stats",
                 value = string.format(
-                    "**Map:** %s\n**Time:** %s\nGems: **%s**\nGold: **%s**\nRC.Cells: **%s**\nFall Currency: **%s**",
+                    "**Map:** %s\n**Time:** %s\n💎 Gems: **%s**\n🪙 Gold: **%s**\n🩸 RC.Cells: **%s**",
                     mapName,
                     playTime,
-                    tostring(resultData.gems or 0),
-                    tostring(resultData.golds or 0),
-                    tostring(resultData.rcCells or 0),
-                    tostring(resultData.fallCurrency or 0)
+                    tostring(resultData.gems),
+                    tostring(resultData.golds),
+                    tostring(resultData.rcCells)
                 ),
                 inline = false
             },
             {
-                name = "Session Rewards",
+                name = "🎁 Session Rewards",
                 value = rewardText,
                 inline = false
             }
@@ -330,11 +348,10 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
     }
 
     local payload = HttpService:JSONEncode({
-        username = "Anime Ranger X Delivery Bot",
+        username = "🤖 Anime Ranger X Delivery Bot ✨",
+        avatar_url = "https://i.imgur.com/your-bot-avatar.gif",
         embeds = {embed}
     })
-
-    print("🔄 กำลังส่ง payload...")
 
     local success, response = pcall(function()
         return http_request({
@@ -346,11 +363,9 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
     end)
 
     if success then
-        print("✅ Webhook ส่งสำเร็จ!")
+        print("✅🌈 Webhook ส่งสำเร็จพร้อมสีสวย!")
     else
         warn("❌ Webhook ส่งไม่สำเร็จ: " .. tostring(response))
-        warn("Debug - URL: " .. tostring(Settings.DiscordURL))
-        warn("Debug - Payload length: " .. string.len(payload))
     end
 end
 
@@ -368,12 +383,7 @@ if webhookSupported then
         -- ฟัง GameEnd (หยุดจับเวลาและส่ง webhook)
         local gameEndRemote = replicated:WaitForChild("Remote"):WaitForChild("Client"):WaitForChild("UI"):WaitForChild("GameEndedUI")
         gameEndRemote.OnClientEvent:Connect(function()
-            print("🎯 เกมจบ! กำลังเตรียมส่ง webhook...")
-            
-            if not Settings.DiscordEnabled then 
-                print("❌ Discord Webhook ถูกปิดใช้งาน")
-                return 
-            end
+            if not Settings.DiscordEnabled then return end
             
             local currentTime = tick()
             
@@ -385,22 +395,14 @@ if webhookSupported then
             
             lastSentTime = currentTime
             local playTime = GameTimer:Stop() -- หยุดจับเวลาและเก็บค่า
-            
+            print("🎯 เกมจบ! กำลังส่ง webhook...")
+
             -- รอให้ข้อมูลอัพเดตก่อนส่ง
             task.spawn(function()
                 local resultData = discordWebhook.getPlayerData()
                 local rewards = discordWebhook.getRewards()
                 local worldInfo = GameDataSystem.GetWorldInfo()
                 local mapName = worldInfo.FullMapName
-
-                print("📊 ข้อมูลที่จะส่ง:")
-                print("- Map:", mapName)
-                print("- Time:", playTime)
-                print("- Gems:", resultData.gems)
-                print("- Gold:", resultData.golds)
-                print("- RC Cells:", resultData.rcCells)
-                print("- Fall Currency:", resultData.fallCurrency)
-                print("- Rewards:", #rewards)
 
                 discordWebhook.sendToDiscord(resultData, rewards, mapName, playTime)
             end)
