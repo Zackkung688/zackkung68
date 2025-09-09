@@ -259,7 +259,24 @@ local webhookSupported = http_request ~= nil
 local lastSentTime = 0
 local COOLDOWN_TIME = 15 -- วินาที
 
--- ฟังก์ชันแปลง RewardsShow เป็น text พร้อม emoji (รอให้ข้อมูลอัพเดต)
+-- ฟังก์ชันดึง Result (ค่าอัพเดตล่าสุด)
+discordWebhook.getPlayerData = function()
+    local dataPath = replicated:FindFirstChild("Player_Data")
+    if not dataPath then return {} end
+
+    local myData = dataPath:FindFirstChild(LocalPlayer.Name)
+    if not myData then return {} end
+    local stats = myData:FindFirstChild("Data")
+    if not stats then return {} end
+
+    return {
+        gems = stats:FindFirstChild("Gem") and stats.Gem.Value or 0,
+        golds = stats:FindFirstChild("Gold") and stats.Gold.Value or 0,
+        rcCells = stats:FindFirstChild("RCCells") and stats.RCCells.Value or 0
+    }
+end
+
+-- ฟังก์ชันแปลง RewardsShow เป็น text พร้อม emoji
 discordWebhook.getRewards = function()
     local rewards = {}
     if not LocalPlayer:FindFirstChild("RewardsShow") then return rewards end
@@ -267,7 +284,8 @@ discordWebhook.getRewards = function()
     -- รอสักครู่ให้ RewardsShow อัพเดต
     task.wait(1)
 
-    local playerItems = ReplicatedStorage:WaitForChild("Player_Data"):WaitForChild(LocalPlayer.Name):WaitForChild("Items")
+    local playerData = ReplicatedStorage:WaitForChild("Player_Data"):WaitForChild(LocalPlayer.Name)
+    local playerItems = playerData:WaitForChild("Items")
 
     for _, folder in pairs(LocalPlayer.RewardsShow:GetChildren()) do
         if folder:IsA("Folder") then
@@ -290,16 +308,24 @@ discordWebhook.getRewards = function()
                     icon = "🎁 "
                 end
 
-                -- เช็กว่ามีใน Items มั้ย
+                -- หา item ปัจจุบันใน Items
                 local currentItem = playerItems:FindFirstChild(folder.Name)
-                local currentCount = currentItem and currentItem.Value or 0
+                local currentCount = (currentItem and (currentItem:IsA("IntValue") or currentItem:IsA("NumberValue"))) and currentItem.Value or 0
                 local newTotal = currentCount
 
-                -- แสดงผลแบบ ได้เพิ่ม + ค่าปัจจุบัน
-                table.insert(
-                    rewards,
-                    string.format("%s+%s %s (รวม: %s)", icon, tostring(amount.Value), folder.Name, tostring(newTotal))
-                )
+                -- ถ้าเจอว่าเป็น item ที่อยู่ใน Items ให้โชว์รวมด้วย
+                if currentItem then
+                    table.insert(
+                        rewards,
+                        string.format("%s+%s %s (รวม: %s)", icon, tostring(amount.Value), folder.Name, tostring(newTotal))
+                    )
+                else
+                    -- ถ้าไม่ใช่ item ใน Items ให้โชว์ปกติ
+                    table.insert(
+                        rewards,
+                        string.format("%sx%s %s", icon, tostring(amount.Value), folder.Name)
+                    )
+                end
             end
         end
     end
@@ -316,8 +342,10 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
     local rewardText = (#rewardList > 0) and table.concat(rewardList, "\n") or "❌ No Rewards"
 
     -- ดึงค่า Trait Reroll จาก Items
-    local playerItems = ReplicatedStorage:WaitForChild("Player_Data"):WaitForChild(LocalPlayer.Name):WaitForChild("Items")
-    local traitReroll = playerItems:FindFirstChild("Trait Reroll") and playerItems["Trait Reroll"].Value or 0
+    local playerData = ReplicatedStorage:WaitForChild("Player_Data"):WaitForChild(LocalPlayer.Name)
+    local playerItems = playerData:WaitForChild("Items")
+    local traitRerollObj = playerItems:FindFirstChild("Trait Reroll")
+    local traitReroll = (traitRerollObj and traitRerollObj.Value) or 0
 
     local embed = {
         title = "# GAME IS COMPLETED?!🍀🎮",
@@ -348,7 +376,7 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
     }
 
     local payload = HttpService:JSONEncode({
-        username = "Zepthic hub",
+        username = "🤖 Anime Ranger X Delivery Bot ✨",
         avatar_url = "https://i.imgur.com/your-bot-avatar.gif",
         embeds = {embed}
     })
