@@ -1,3 +1,4 @@
+--Content is user-generated and unverified.
 local replicated = game:GetService("ReplicatedStorage")
 local PathfindingService = game:GetService("PathfindingService")
 local vim = game:GetService("VirtualInputManager")
@@ -41,13 +42,6 @@ local ConfigName = path.."/"..LocalPlayer.Name.."-config.json"
 local DefaultSettings = {
 	DiscordEnabled = false,
 	DiscordURL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL",
-	StoryMode = "Shibuya",
-	Chapter = "1",
-	Difficulty = "Normal",
-	World = "Shibuya",
-	Act = "1",
-	RaidWorld = "Shibuya",
-	RaidAct = "1"
 }
 
 local Settings = {}
@@ -195,6 +189,65 @@ function GameDataSystem.GetWorldInfoFallback()
 	}
 end
 
+-- ดึง Story และ World List ที่มีอยู่
+function GameDataSystem.GetAvailableWorlds()
+	local worlds = {}
+	local success = pcall(function()
+		local GameWorld = replicated.Shared.Info.GameWorld
+		local WorldData = require(GameWorld.World)
+		
+		for worldId, worldInfo in pairs(WorldData) do
+			table.insert(worlds, {
+				id = worldId,
+				name = worldInfo.Name
+			})
+		end
+	end)
+	
+	if not success or #worlds == 0 then
+		-- Fallback: ใช้ข้อมูลจาก GUI เก่า
+		for i,v in pairs(game:GetService("Players").LocalPlayer.PlayerGui.PlayRoom.Main.GameStage.Main.Base.Story.ScrollingFrame:GetChildren()) do
+			if v:IsA("TextButton") and v.Name ~= "UIListLayout" then
+				table.insert(worlds, {
+					id = v.Name,
+					name = v.Name
+				})
+			end
+		end
+	end
+	
+	return worlds
+end
+
+function GameDataSystem.GetAvailableChapters(worldId)
+	local chapters = {}
+	local success = pcall(function()
+		local GameWorld = replicated.Shared.Info.GameWorld  
+		local LevelsData = require(GameWorld.Levels)
+		
+		if LevelsData[worldId] then
+			for levelId, levelInfo in pairs(LevelsData[worldId]) do
+				table.insert(chapters, {
+					id = levelId,
+					name = levelInfo.Name
+				})
+			end
+		end
+	end)
+	
+	if not success or #chapters == 0 then
+		-- Fallback: ใช้หมายเลขธรรมดา
+		for i = 1, 10 do
+			table.insert(chapters, {
+				id = tostring(i),
+				name = "Chapter " .. i
+			})
+		end
+	end
+	
+	return chapters
+end
+
 -- Discord Webhook Functions
 local discordWebhook = {}
 
@@ -206,168 +259,113 @@ local webhookSupported = http_request ~= nil
 local lastSentTime = 0
 local COOLDOWN_TIME = 15 -- วินาที
 
--- ฟังก์ชันดึงข้อมูลผู้เล่น (อัปเดต)
-discordWebhook.getPlayerData = function()
-    local dataPath = replicated:FindFirstChild("Player_Data")
-    if not dataPath then return {} end
+-- ฟังก์ชันแปลง RewardsShow เป็น text พร้อม emoji (รอให้ข้อมูลอัพเดต)
+discordWebhook.getRewards = function()
+    local rewards = {}
+    if not LocalPlayer:FindFirstChild("RewardsShow") then return rewards end
 
-    local myData = dataPath:FindFirstChild(LocalPlayer.Name)
-    if not myData then return {} end
-    
-    local stats = myData:FindFirstChild("Data")
-    local items = myData:FindFirstChild("Items")
-    
-    local playerData = {
-        gems = 0,
-        golds = 0,
-        level = 1,
-        traits = 0
-    }
-    
-    -- ดึงข้อมูลพื้นฐาน
-    if stats then
-        playerData.gems = stats:FindFirstChild("Gem") and stats.Gem.Value or 0
-        playerData.golds = stats:FindFirstChild("Gold") and stats.Gold.Value or 0
-        playerData.level = stats:FindFirstChild("Level") and stats.Level.Value or 1
-    end
-    
-    -- ดึงข้อมูล Trait Reroll
-    if items then
-        local traitReroll = items:FindFirstChild("Trait Reroll")
-        if traitReroll then
-            local amount = traitReroll:FindFirstChild("Amount")
-            playerData.traits = amount and amount.Value or 0
-        end
-    end
-    
-    return playerData
-end
-
--- ฟังก์ชันดึงข้อมูลไอเทม (อัปเดต)
-discordWebhook.getItems = function()
-    local items = {}
-    local dataPath = replicated:FindFirstChild("Player_Data")
-    if not dataPath then return items end
-
-    local myData = dataPath:FindFirstChild(LocalPlayer.Name)
-    if not myData then return items end
-    
-    local itemsFolder = myData:FindFirstChild("Items")
-    if not itemsFolder then return items end
-
-    -- รอสักครู่ให้ข้อมูลอัพเดต
+    -- รอสักครู่ให้ RewardsShow อัพเดต
     task.wait(1)
 
-    for _, itemFolder in pairs(itemsFolder:GetChildren()) do
-        if itemFolder:IsA("Folder") then
-            local amount = itemFolder:FindFirstChild("Amount")
+    local playerItems = ReplicatedStorage:WaitForChild("Player_Data"):WaitForChild(LocalPlayer.Name):WaitForChild("Items")
+
+    for _, folder in pairs(LocalPlayer.RewardsShow:GetChildren()) do
+        if folder:IsA("Folder") then
+            local amount = folder:FindFirstChild("Amount")
             if amount and (amount:IsA("IntValue") or amount:IsA("NumberValue")) and amount.Value > 0 then
-                table.insert(items, {
-                    name = itemFolder.Name,
-                    amount = amount.Value,
-                    id = itemFolder.Name
-                })
+                local icon = ""
+                local name = folder.Name:lower()
+
+                if name:find("gem") then
+                    icon = "💎 "
+                elseif name:find("gold") then
+                    icon = "🪙 "
+                elseif name:find("exp") then
+                    icon = "⭐ "
+                elseif name:find("rccells") or name:find("cell") then
+                    icon = "🩸 "
+                elseif name:find("portal") then
+                    icon = "🌀 "
+                else
+                    icon = "🎁 "
+                end
+
+                -- เช็กว่ามีใน Items มั้ย
+                local currentItem = playerItems:FindFirstChild(folder.Name)
+                local currentCount = currentItem and currentItem.Value or 0
+                local newTotal = currentCount
+
+                -- แสดงผลแบบ ได้เพิ่ม + ค่าปัจจุบัน
+                table.insert(
+                    rewards,
+                    string.format("%s+%s %s (รวม: %s)", icon, tostring(amount.Value), folder.Name, tostring(newTotal))
+                )
             end
         end
     end
 
-    return items
+    return rewards
 end
 
--- ฟังก์ชันส่ง Discord Embed (เวอร์ชันกัน error + debug)
+-- ฟังก์ชันส่ง Discord Embed
 discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTime)
     if not Settings.DiscordEnabled or not webhookSupported then
-        warn("❌ Webhook ปิดอยู่ หรือ executor ไม่รองรับ")
         return
     end
 
-    -- กัน nil ทุกค่า
-    local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
-    local totalDmg = (leaderstats and leaderstats:FindFirstChild("Total Damage")) and leaderstats["Total Damage"].Value or 0
-    local takedowns = (leaderstats and leaderstats:FindFirstChild("Takedowns")) and leaderstats.Takedowns.Value or 0
+    local rewardText = (#rewardList > 0) and table.concat(rewardList, "\n") or "❌ No Rewards"
 
-    local safe = function(v, default)
-        return (v ~= nil and v ~= "") and v or default
-    end
-
-    local formattedRewards = {}
-    if #rewardList > 0 then
-        for _, reward in ipairs(rewardList) do
-            local amount = safe(reward.amount, 1)
-            local id = safe(reward.id, "?")
-            table.insert(formattedRewards, string.format("- %s x%s [%s]", safe(reward.name, "Unknown"), tostring(amount), tostring(id)))
-        end
-    end
-    local rewardText = (#formattedRewards > 0) and table.concat(formattedRewards, "\n") or "❌ No Rewards"
+    -- ดึงค่า Trait Reroll จาก Items
+    local playerItems = ReplicatedStorage:WaitForChild("Player_Data"):WaitForChild(LocalPlayer.Name):WaitForChild("Items")
+    local traitReroll = playerItems:FindFirstChild("Trait Reroll") and playerItems["Trait Reroll"].Value or 0
 
     local embed = {
-        title = "[Update 6.5] Anime Ranger X",
-        color = 0x00ff99,
-        thumbnail = { url = "https://tr.rbxcdn.com/180DAY-415e4717b8e0c8519766d4c5bfc6a240/256/256/Image/Webp/noFilter" },
+        title = "# GAME IS COMPLETED?!🍀🎮",
+        color = 0x99ff33,
         fields = {
-            { name = "⭐ Name:", value = safe(LocalPlayer.Name, "?"), inline = true },
-            { name = "📊 Level:", value = tostring(safe(resultData.level, 0)), inline = true },
+            { name = "👤 Player", value = LocalPlayer.Name, inline = false },
             {
-                name = "⏱️ Results",
+                name = "🏆 Current Stats",
                 value = string.format(
-                    "+ [%s] %s\n+ Total Time: %s\n+ Total DMG: %s\n+ Total Takedowns: %s",
-                    safe(resultData.mode, "Story"),
-                    safe(mapName, "?"),
-                    safe(playTime, "00:00"),
-                    tostring(totalDmg),
-                    tostring(takedowns)
+                    "**Map:** %s\n**Time:** %s\n💎 Gems: **%s**\n🪙 Gold: **%s**\n🩸 RC.Cells: **%s**\n🎲 Trait Reroll: **%s**",
+                    mapName,
+                    playTime,
+                    tostring(resultData.gems),
+                    tostring(resultData.golds),
+                    tostring(resultData.rcCells),
+                    tostring(traitReroll)
                 ),
                 inline = false
             },
             {
-                name = "🏆 Rewards",
+                name = "🎁 Session Rewards",
                 value = rewardText,
                 inline = false
             }
         },
-        footer = { text = "discord.gg/Zepthic • " .. os.date("%H:%M:%S") },
+        footer = { text = "discord.gg/Jaabook  •  " .. os.date("%H:%M:%S") },
         timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
     }
 
-    local extraFields = {
-        { name = "💎 Gems", value = tostring(safe(resultData.gems, 0)), inline = true },
-        { name = "🪙 Golds", value = tostring(safe(resultData.golds, 0)), inline = true },
-        { name = "🎭 Reroll", value = tostring(safe(resultData.traits, 0)), inline = true }
-    }
-    for _, f in ipairs(extraFields) do
-        table.insert(embed.fields, f)
-    end
+    local payload = HttpService:JSONEncode({
+        username = "Zepthic hub",
+        avatar_url = "https://i.imgur.com/your-bot-avatar.gif",
+        embeds = {embed}
+    })
 
-    local payload
-    local success, err = pcall(function()
-        payload = HttpService:JSONEncode({
-            username = "Zepthic Hub",
-            avatar_url = "https://tr.rbxcdn.com/180DAY-c16971484f933ef370edd236f005460c/150/150/Image/Png/noFilter",
-            embeds = { embed }
-        })
-    end)
-
-    if not success then
-        warn("❌ JSON Encode Error:", err)
-        warn("📌 Debug embed:", embed)
-        return
-    end
-
-    -- ส่งจริง
-    local request = http_request or syn.request or fluxus.request or krnl.request
-    local ok, response = pcall(function()
-        return request({
+    local success, response = pcall(function()
+        return http_request({
             Url = Settings.DiscordURL,
             Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
+            Headers = {["Content-Type"] = "application/json"},
             Body = payload
         })
     end)
 
-    if ok then
-        print("✅🌈 Webhook ส่งสำเร็จ!")
+    if success then
+        print("✅🌈 Webhook ส่งสำเร็จพร้อมสีสวย!")
     else
-        warn("❌ Webhook ส่งไม่สำเร็จ:", tostring(response))
+        warn("❌ Webhook ส่งไม่สำเร็จ: " .. tostring(response))
     end
 end
 
@@ -402,7 +400,7 @@ if webhookSupported then
             -- รอให้ข้อมูลอัพเดตก่อนส่ง
             task.spawn(function()
                 local resultData = discordWebhook.getPlayerData()
-                local rewards = discordWebhook.getItems()
+                local rewards = discordWebhook.getRewards()
                 local worldInfo = GameDataSystem.GetWorldInfo()
                 local mapName = worldInfo.FullMapName
 
@@ -412,12 +410,18 @@ if webhookSupported then
     end)
 end
 
-local Story = {"Shibuya", "Jujutsu High", "Perfect Preparation", "Fearsome Womb", "Vessel", "Origin of Obedience", "Young Fish and Reverse Punishment", "What You See", "Accomplished Facts", "Right and Wrong", "Vs. Mahito", "Narrow-minded", "Red Scale", "Fluctuations", "Fluctuations 2", "The Origin of Blind Obedience", "Metamorphosis", "Accomplices", "Hunting and Gathering", "Sage", "Vs. The Calamity of the Sea"}
-local Worlds = {"Shibuya", "Jujutsu High", "Perfect Preparation", "Fearsome Womb", "Vessel", "Origin of Obedience", "Young Fish and Reverse Punishment", "What You See", "Accomplished Facts", "Right and Wrong", "Vs. Mahito", "Narrow-minded", "Red Scale", "Fluctuations", "Fluctuations 2", "The Origin of Blind Obedience", "Metamorphosis", "Accomplices", "Hunting and Gathering", "Sage", "Vs. The Calamity of the Sea"}
-local RaidWorlds = {"Shibuya", "Jujutsu High", "Perfect Preparation", "Fearsome Womb", "Vessel"}
+local Story = {}
+local Worlds = {}
 local record = {}
 local marco = {}
 local func = {}
+
+-- โหลดข้อมูล World และ Story
+local availableWorlds = GameDataSystem.GetAvailableWorlds()
+for _, world in pairs(availableWorlds) do
+    table.insert(Story, world.name)
+    table.insert(Worlds, world.name)
+end
 
 if isfolder(path.."/Marco") then
 	for _, filePath in ipairs(listfiles(path.."/Marco")) do
@@ -528,7 +532,7 @@ func['JoinRanger'] = (function()
 				replicated:WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer("Change-Mode", {Mode = "Ranger"})
 			end
 			if replicated.PlayRoom:FindFirstChild(LocalPlayer.Name).World.Value ~= _G.World then 
-				replicated:WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer("Change-World", {World = _G.World})
+				replicated:WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer("Change-World", {World = "Ranger"})
 			end
 			if replicated.PlayRoom:FindFirstChild(LocalPlayer.Name).Chapter.Value ~= _G.World.."_".."RangerStage".._G.Act then
 				replicated:WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer("Change-Chapter", {Chapter = _G.World.."_".."RangerStage".._G.Act})
@@ -539,33 +543,6 @@ func['JoinRanger'] = (function()
 			if not replicated.PlayRoom:FindFirstChild(LocalPlayer.Name).OnTeleport.Value then
 				replicated:WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer("Start")
 			end
-			end
-		end)
-	end
-end)
-
-func['JoinRaid'] = (function()
-	while _G.JoinRaid do task.wait()
-		pcall(function()
-			if not workspace:FindFirstChild('Building') then
-				if not replicated.PlayRoom:FindFirstChild(LocalPlayer.Name) then
-					replicated:WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer('Create')
-				end
-				if not game:GetService("ReplicatedStorage").PlayRoom:FindFirstChild(LocalPlayer.Name).Mode.Value ~= "Raid" then
-					replicated:WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer("Change-Mode", {Mode = "Raid"})
-				end
-				if replicated.PlayRoom:FindFirstChild(LocalPlayer.Name).World.Value ~= _G.RaidWorld then 
-					replicated:WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer("Change-World", {World = _G.RaidWorld})
-				end
-				if replicated.PlayRoom:FindFirstChild(LocalPlayer.Name).Chapter.Value ~= _G.RaidWorld.."_".."Raid".._G.RaidAct then
-					replicated:WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer("Change-Chapter", {Chapter = _G.RaidWorld.."_".."Raid".._G.RaidAct})
-				end
-				if not replicated.PlayRoom:FindFirstChild(LocalPlayer.Name).Submit.Value then 
-					replicated:WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer("Submit")
-				end
-				if not replicated.PlayRoom:FindFirstChild(LocalPlayer.Name).OnTeleport.Value then
-					replicated:WaitForChild("Remote"):WaitForChild("Server"):WaitForChild("PlayRoom"):WaitForChild("Event"):FireServer("Start")
-				end
 			end
 		end)
 	end
@@ -745,7 +722,7 @@ end
 
 local Window = Fluent:CreateWindow({
 	Title = "Zepthic",
-	SubTitle = "Anime Ranger X",
+	SubTitle = "Anime Ranger x",
 	TabWidth = 160,
 	Size = UDim2.fromOffset(580, 360),
 	Acrylic = false,
@@ -809,10 +786,34 @@ do
 	-- Auto Join Tab
 	Tabs.AutoJoin:AddSection("Story Mode")
 	
-	Dropdown(Tabs.AutoJoin, "Story World: ", Story, Settings.StoryMode, function(value)
+	-- สร้าง Dropdown ที่มีข้อมูลจริง
+	local storyNames = {}
+	for _, name in pairs(Story) do
+		table.insert(storyNames, name)
+	end
+	
+	Dropdown(Tabs.AutoJoin, "Story World: ", storyNames, Settings.StoryMode, function(value)
 		Settings.StoryMode = value
 		_G.StoryMode = value
 		saveConfig()
+		
+		-- อัพเดต Chapter list ตาม World ที่เลือก
+		local selectedWorldId = nil
+		for _, world in pairs(availableWorlds) do
+			if world.name == value then
+				selectedWorldId = world.id
+				break
+			end
+		end
+		
+		if selectedWorldId then
+			local chapters = GameDataSystem.GetAvailableChapters(selectedWorldId)
+			local chapterNames = {}
+			for _, chapter in pairs(chapters) do
+				table.insert(chapterNames, chapter.id)
+			end
+			-- TODO: อัพเดต Chapter dropdown (ต้องเก็บ reference)
+		end
 	end)
 	
 	Dropdown(Tabs.AutoJoin, "Chapter: ", {'1','2','3','4','5','6','7','8','9','10'}, Settings.Chapter, function(value)
@@ -831,7 +832,12 @@ do
 	
 	Tabs.AutoJoin:AddSection("Ranger Mode")
 	
-	Dropdown(Tabs.AutoJoin, "World: ", Worlds, Settings.World, function(value)
+	local worldNames = {}
+	for _, name in pairs(Worlds) do
+		table.insert(worldNames, name)
+	end
+	
+	Dropdown(Tabs.AutoJoin, "World: ", worldNames, Settings.World, function(value)
 		Settings.World = value
 		_G.World = value
 		saveConfig()
@@ -844,23 +850,6 @@ do
 	end)
 	
 	Toggle(Tabs.AutoJoin, "Auto Join Ranger", "JoinRanger")
-	
-	-- New Raid Section
-	Tabs.AutoJoin:AddSection("Raid Mode")
-	
-	Dropdown(Tabs.AutoJoin, "Raid World: ", RaidWorlds, Settings.RaidWorld, function(value)
-		Settings.RaidWorld = value
-		_G.RaidWorld = value
-		saveConfig()
-	end)
-	
-	Dropdown(Tabs.AutoJoin, "Raid Act: ", {'1','2','3','4'}, Settings.RaidAct, function(value)
-		Settings.RaidAct = value
-		_G.RaidAct = value
-		saveConfig()
-	end)
-	
-	Toggle(Tabs.AutoJoin, "Auto Join Raid", "JoinRaid")
 	
 	Tabs.AutoJoin:AddSection("Game Info")
 	Tabs.AutoJoin:AddButton({
@@ -1160,7 +1149,6 @@ do
 			-- Test webhook with current game data
 			local worldInfo = GameDataSystem.GetWorldInfo()
 			local playTime = GameTimer:GetPlayTime()
-			local playerData = discordWebhook.getPlayerData()
 			
 			local testEmbed = {
 				title = "🧪 Test Message from Zepthic ARX",
@@ -1168,21 +1156,18 @@ do
 				color = 0x00ff00,
 				fields = {
 					{ name = "👤 Player", value = LocalPlayer.Name, inline = true },
-					{ name = "📊 Level", value = tostring(playerData.level), inline = true },
+					{ name = "🎮 Game", value = "Anime Ranger X", inline = true },
 					{ name = "🗺️ Current Map", value = worldInfo.FullMapName, inline = true },
 					{ name = "⏰ Session Time", value = playTime, inline = true },
-					{ name = "💎 Gems", value = tostring(playerData.gems), inline = true },
-					{ name = "🪙 Golds", value = tostring(playerData.golds), inline = true },
-					{ name = "🎭 Reroll", value = tostring(playerData.traits), inline = true },
-					{ name = "✨ Status", value = "Webhook Working Perfectly!", inline = false }
+					{ name = "✨ Status", value = "Webhook Working Perfectly!", inline = true }
 				},
-				footer = { text = "discord.gg/Zepthic  •  " .. os.date("%H:%M:%S") },
+				footer = { text = "Zepthic ARX Script  •  " .. os.date("%H:%M:%S") },
 				timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
 			}
 
 			local payload = HttpService:JSONEncode({
-				username = "Zepthic Hub",
-				avatar_url = "https://tr.rbxcdn.com/180DAY-c16971484f933ef370edd236f005460c/150/150/Image/Png/noFilter",
+				username = "🤖 Zepthic Test Bot",
+				avatar_url = "https://i.imgur.com/your-bot-avatar.gif",
 				embeds = {testEmbed}
 			})
 
@@ -1219,7 +1204,7 @@ do
 	
 	Tabs.Discord:AddParagraph({
 		Title = "🎯 Enhanced Features:",
-		Content = "• Automatic game completion notifications\n• Real-time item and level detection\n• Accurate play time tracking\n• Player stats and rewards display\n• Beautiful embed messages with game thumbnail\n• Anti-spam protection (15 second cooldown)\n• Live game data from ReplicatedStorage"
+		Content = "• Automatic game completion notifications\n• Real-time map name detection\n• Accurate play time tracking\n• Player stats and rewards display\n• Beautiful embed messages with emojis\n• Anti-spam protection (15 second cooldown)\n• Live game data integration"
 	})
 	
 	Tabs.Discord:AddSection("Webhook Preview")
@@ -1230,34 +1215,20 @@ do
 			local worldInfo = GameDataSystem.GetWorldInfo()
 			local playTime = GameTimer:GetPlayTime()
 			local playerData = discordWebhook.getPlayerData()
-			local items = discordWebhook.getItems()
-			
-			local itemsText = "Items: "
-			if #items > 0 then
-				local itemNames = {}
-				for _, item in pairs(items) do
-					table.insert(itemNames, item.name .. " x" .. item.amount)
-				end
-				itemsText = itemsText .. table.concat(itemNames, ", ")
-			else
-				itemsText = itemsText .. "None"
-			end
 			
 			local previewText = string.format(
-				"Map: %s\nTime: %s\nLevel: %d\nGems: %d\nGold: %d\nReroll: %d\n%s",
+				"Map: %s\nTime: %s\nGems: %d\nGold: %d\nRC Cells: %d",
 				worldInfo.FullMapName,
 				playTime,
-				playerData.level,
 				playerData.gems,
 				playerData.golds,
-				playerData.traits,
-				itemsText
+				playerData.rcCells
 			)
 			
 			Fluent:Notify({
 				Title = "Discord Preview",
 				Content = previewText,
-				Duration = 7
+				Duration = 5
 			})
 		end
 	})
@@ -1271,15 +1242,12 @@ do
 		Title = "Show Script Info",
 		Description = "Display current script status",
 		Callback = function()
-			local playerData = discordWebhook.getPlayerData()
 			local info = string.format(
-				"Script: Zepthic ARX v2.1\nPlayer: %s\nLevel: %d\nGame Timer: %s\nWebhook: %s\nWorlds Loaded: %d\nRaid Worlds: %d\nMarcos Available: %d",
+				"Script: Zepthic ARX v2.0\nPlayer: %s\nGame Timer: %s\nWebhook: %s\nWorlds Loaded: %d\nMarcos Available: %d",
 				LocalPlayer.Name,
-				playerData.level,
 				GameTimer.isGameRunning and "Running" or "Stopped",
 				webhookSupported and "Supported" or "Not Supported",
-				#Story,
-				#RaidWorlds,
+				#availableWorlds,
 				#marco
 			)
 			
@@ -1292,28 +1260,24 @@ do
 	})
 	
 	Tabs.Settings:AddButton({
-		Title = "Show Player Items",
-		Description = "Display all items in inventory",
+		Title = "Reload World Data",
+		Description = "Refresh world and level information",
 		Callback = function()
-			local items = discordWebhook.getItems()
-			if #items > 0 then
-				local itemText = "Items found:\n"
-				for _, item in pairs(items) do
-					itemText = itemText .. string.format("- %s x%d\n", item.name, item.amount)
-				end
-				
-				Fluent:Notify({
-					Title = "Player Items",
-					Content = itemText,
-					Duration = 8
-				})
-			else
-				Fluent:Notify({
-					Title = "Player Items",
-					Content = "No items found in inventory",
-					Duration = 3
-				})
+			-- Reload world data
+			table.clear(Story)
+			table.clear(Worlds)
+			
+			local newWorlds = GameDataSystem.GetAvailableWorlds()
+			for _, world in pairs(newWorlds) do
+				table.insert(Story, world.name)
+				table.insert(Worlds, world.name)
 			end
+			
+			Fluent:Notify({
+				Title = "Data Manager",
+				Content = string.format("Reloaded %d worlds successfully!", #newWorlds),
+				Duration = 3
+			})
 		end
 	})
 end
@@ -1332,8 +1296,8 @@ InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 Window:SelectTab(1)
 
 Fluent:Notify({
-	Title = "Zepthic ARX v2.1 Loaded Successfully! 🎉",
-	Content = "Enhanced with Item Detection & Raid Mode",
+	Title = "Zepthic ARX v2.0 Loaded Successfully! 🎉",
+	Content = "Enhanced with Game Data Detection & Timer System",
 	Duration = 5
 })
 
