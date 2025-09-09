@@ -326,7 +326,7 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
         fields = {
             { name = "👤 Player", value = LocalPlayer.Name, inline = false },
             {
-                name = "🏆 Current Stats",
+                name = "Result x ข้อมูลการเล่น: ",
                 value = string.format(
                     "**Map:** %s\n**Time:** %s\n💎 Gems: **%s**\n🪙 Gold: **%s**\n🩸 RC.Cells: **%s**",
                     mapName,
@@ -338,7 +338,7 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
                 inline = false
             },
             {
-                name = "🎁 Session Rewards",
+                name = "Reward x ของรางวัลที่ได้รับ: ",
                 value = rewardText,
                 inline = false
             }
