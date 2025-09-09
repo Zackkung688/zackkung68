@@ -245,7 +245,6 @@ function GameDataSystem.GetAvailableChapters(worldId)
 	end
 	
 	return chapters
-end
 
 -- Discord Webhook Functions
 local discordWebhook = {}
@@ -253,10 +252,6 @@ local discordWebhook = {}
 -- รองรับ executor
 local http_request = http_request or syn and syn.request or request
 local webhookSupported = http_request ~= nil
-
--- ตัวแปรกันซ้ำที่แข็งแกร่งขึ้น
-local lastSentTime = 0
-local COOLDOWN_TIME = 15 -- วินาที
 
 -- ฟังก์ชันดึง Result (ค่าอัพเดตล่าสุด) พร้อม Fall Currency และ Trait Reroll
 discordWebhook.getPlayerData = function()
@@ -368,8 +363,6 @@ discordWebhook.getRewards = function()
     end
 
     return rewards
-end
-
 end
 
 -- ฟังก์ชันส่ง Discord Embed (เหมือนเดิม)
