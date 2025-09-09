@@ -258,17 +258,18 @@ local webhookSupported = http_request ~= nil
 local lastSentTime = 0
 local COOLDOWN_TIME = 15 -- วินาที
 
--- ฟังก์ชันแปลง RewardsShow เป็น text พร้อม emoji + จำนวนที่มีทั้งหมด
-discordWebhook.getRewards = function()
-    local rewards = {}
-    if not LocalPlayer:FindFirstChild("RewardsShow") then return rewards end
+-- ฟังก์ชันดึง Result (ค่าอัพเดตล่าสุด) พร้อม Fall Currency และ Trait Reroll
+discordWebhook.getPlayerData = function()
+    local dataPath = replicated:FindFirstChild("Player_Data")
+    if not dataPath then return {} end
 
-    task.wait(1)
+    local myData = dataPath:FindFirstChild(LocalPlayer.Name)
+    if not myData then return {} end
+    local stats = myData:FindFirstChild("Data")
+    local items = myData:FindFirstChild("Items")
+    if not stats or not items then return {} end
 
-    local playerData = replicated:WaitForChild("Player_Data"):WaitForChild(LocalPlayer.Name)
-    local stats = playerData:WaitForChild("Data")
-    local itemsFolder = playerData:WaitForChild("Items")
-
+    -- ฟังก์ชันช่วยดึงจำนวนจาก Folder > Amount
     local function getItemAmount(folder)
         if folder and folder:IsA("Folder") then
             local amountObj = folder:FindFirstChild("Amount")
@@ -279,61 +280,82 @@ discordWebhook.getRewards = function()
         return 0
     end
 
+    return {
+        gems = stats:FindFirstChild("Gem") and stats.Gem.Value or 0,
+        golds = stats:FindFirstChild("Gold") and stats.Gold.Value or 0,
+        rcCells = stats:FindFirstChild("RCCells") and stats.RCCells.Value or 0,
+        fallCurrency = stats:FindFirstChild("Fall Currency") and stats["Fall Currency"].Value or 0,
+        traitReroll = getItemAmount(items:FindFirstChild("Trait Reroll"))
+    }
+end
+
+-- ฟังก์ชันแปลง RewardsShow เป็น text พร้อม emoji + จำนวนที่มีทั้งหมด (รองรับทุกชั้น)
+discordWebhook.getRewards = function()
+    local rewards = {}
+    if not LocalPlayer:FindFirstChild("RewardsShow") then return rewards end
+
+    task.wait(1) -- รอสักครู่ให้ RewardsShow อัพเดต
+
+    local itemsFolder = replicated:WaitForChild("Player_Data"):WaitForChild(LocalPlayer.Name):WaitForChild("Items")
+
+    -- ฟังก์ชันช่วยดึงจำนวนจาก Folder > Amount
+    local function getItemAmount(folder)
+        if folder and folder:IsA("Folder") then
+            local amountObj = folder:FindFirstChild("Amount")
+            if amountObj and (amountObj:IsA("IntValue") or amountObj:IsA("NumberValue")) then
+                return amountObj.Value
+            end
+        end
+        return 0
+    end
+
+    -- ฟังก์ชันกำหนดไอคอนตามชื่อ
     local function getIcon(name)
-        local n = name:lower()
-        if n == "gem" then
+        name = name:lower()
+        if name:find("gem") then
             return "💎 "
-        elseif n == "gold" then
+        elseif name:find("gold") then
             return "🪙 "
-        elseif n == "exp" then
+        elseif name:find("exp") then
             return "⭐ "
-        elseif n == "rccells" or n:find("cell") then
+        elseif name:find("rccells") or name:find("cell") then
             return "🩸 "
-        elseif n == "fall currency" then
+        elseif name:find("fall") then
             return "🍁 "
-        elseif n == "trait reroll" then
+        elseif name:find("trait") then
             return "🧩 "
-        elseif n:find("portal") then
+        elseif name:find("portal") then
             return "🌀 "
         else
             return "🎁 "
         end
     end
 
+    -- ดึง RewardsShow ทุก Folder
     for _, folder in pairs(LocalPlayer.RewardsShow:GetChildren()) do
         if folder:IsA("Folder") then
             local amountObj = folder:FindFirstChild("Amount")
-            if amountObj and amountObj.Value > 0 then
+            if amountObj and (amountObj:IsA("IntValue") or amountObj:IsA("NumberValue")) and amountObj.Value > 0 then
                 local name = folder.Name
-                local lowerName = name:lower()
                 local icon = getIcon(name)
 
-                if lowerName == "gem" or lowerName == "gold" or lowerName == "exp" then
-                    -- ไม่ต้องใส่ [ ]
-                    table.insert(rewards, string.format("%s x%d %s", icon, amountObj.Value, name))
-
-                elseif lowerName == "fall currency" then
-                    -- แค่โชว์ที่ได้ ไม่ต้องมี [ ]
-                    table.insert(rewards, string.format("%s x%d %s", icon, amountObj.Value, name))
-
-                elseif lowerName == "trait reroll" then
-                    -- ใช้ค่าใน RewardsShow ตรง ๆ แทน owned (เพื่อให้ตรงกับ Reward ที่เพิ่งได้)
-                    local ownedNow = getItemAmount(itemsFolder:FindFirstChild("Trait Reroll"))
-                    table.insert(rewards, string.format("%s x%d %s [%d]", icon, amountObj.Value, name, ownedNow))
-
-                else
-                    -- Items อื่น ๆ
-                    local totalOwned = 0
-                    local itemFolder = itemsFolder:FindFirstChild(name)
-                    if itemFolder then
-                        if itemFolder:FindFirstChild("Amount") then
-                            totalOwned = getItemAmount(itemFolder)
-                        else
-                            for _, sub in pairs(itemFolder:GetChildren()) do
-                                totalOwned = totalOwned + getItemAmount(sub)
-                            end
+                -- จำนวนที่มีจริงจาก Items (รองรับ Folder ซ้อน)
+                local totalOwned = 0
+                local itemFolder = itemsFolder:FindFirstChild(name)
+                if itemFolder then
+                    if itemFolder:FindFirstChild("Amount") then
+                        totalOwned = getItemAmount(itemFolder)
+                    else
+                        for _, sub in pairs(itemFolder:GetChildren()) do
+                            totalOwned = totalOwned + getItemAmount(sub)
                         end
                     end
+                end
+
+                -- ถ้าเป็น Gem / Gold / Exp ไม่ต้องใส่ [จำนวนที่มี]
+                if name:lower():find("gem") or name:lower():find("gold") or name:lower():find("exp") then
+                    table.insert(rewards, string.format("%s x%d %s", icon, amountObj.Value, name))
+                else
                     table.insert(rewards, string.format("%s x%d %s [%d]", icon, amountObj.Value, name, totalOwned))
                 end
             end
