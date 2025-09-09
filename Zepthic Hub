@@ -290,7 +290,7 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
         fields = {
             { name = "Player", value = LocalPlayer.Name, inline = false },
             {
-                name = "Result - ข้อมูล",
+                name = "Current Stats",
                 value = string.format(
                     "**Map:** %s\n**Time:** %s\nGems: **%s**\nGold: **%s**\nRC.Cells: **%s**\nFall Currency: **%s**",
                     mapName,
@@ -303,7 +303,7 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
                 inline = false
             },
             {
-                name = "Rewards - ของรางวัล",
+                name = "Session Rewards",
                 value = rewardText,
                 inline = false
             }
@@ -313,7 +313,7 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
     }
 
     local payload = HttpService:JSONEncode({
-        username = "Zepthic Hub",
+        username = "🤖 Anime Ranger X Delivery Bot ✨",
         avatar_url = "https://i.imgur.com/your-bot-avatar.gif",
         embeds = {embed}
     })
@@ -328,22 +328,13 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
     end)
 
     if success then
-        print("✅🌈 Webhook ส่งสำเร็จพร้อมสีสวย!")
+        print("✅ Webhook ส่งสำเร็จพร้อมสีสวย!")
     else
         warn("❌ Webhook ส่งไม่สำเร็จ: " .. tostring(response))
+        warn("Debug - URL: " .. tostring(Settings.DiscordURL))
+        warn("Debug - Payload: " .. payload)
     end
 end
-
--- Setup Discord Event Listener พร้อมระบบจับเวลา
-if webhookSupported then
-    spawn(function()
-        -- ฟัง GameStart (เริ่มจับเวลา)
-        local gameStartConnection
-        gameStartConnection = RunService.Heartbeat:Connect(function()
-            if workspace:FindFirstChild('Building') and not GameTimer.isGameRunning then
-                GameTimer:Start()
-            end
-        end)
 
         -- ฟัง GameEnd (หยุดจับเวลาและส่ง webhook)
         local gameEndRemote = replicated:WaitForChild("Remote"):WaitForChild("Client"):WaitForChild("UI"):WaitForChild("GameEndedUI")
