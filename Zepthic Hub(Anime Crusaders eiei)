@@ -1,0 +1,1015 @@
+local replicated = game:GetService("ReplicatedStorage")
+local PathfindingService = game:GetService("PathfindingService")
+local vim = game:GetService("VirtualInputManager")
+local teleport = game:GetService('TeleportService')
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+local Backpack = LocalPlayer:WaitForChild("Backpack")
+
+LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+	Character = newCharacter
+	Humanoid = Character:WaitForChild('Humanoid')
+	RootPart = Character:WaitForChild('HumanoidRootPart')
+	Backpack = LocalPlayer:WaitForChild("Backpack")
+end)
+
+do 
+	if LocalPlayer.PlayerGui:FindFirstChild("Roblox/Fluent") then  LocalPlayer.PlayerGui:FindFirstChild("Roblox/Fluent"):Destroy() end 
+	if LocalPlayer.PlayerGui:FindFirstChild("ScreenGuis") then  LocalPlayer.PlayerGui.ScreenGuis:Destroy() end
+end
+
+do
+	local GC = getconnections or get_signal_cons
+	if GC then
+		for i,v in ipairs(GC(LocalPlayer.Idled)) do if v["Disable"] then v["Disable"](v) elseif v["Disconnect"] then v["Disconnect"](v) end end
+	else
+		LocalPlayer.Idled:Connect(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new()) end)
+	end
+end
+
+local mainFolder = "Zepthic"
+local path = mainFolder.."/AC"
+local ConfigName = path.."/"..LocalPlayer.Name.."-config.json"
+
+-- Default Settings including Discord Webhook
+local DefaultSettings = {
+	DiscordEnabled = false,
+	DiscordURL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL",
+	Pod = "P1",
+	Level = "namek_level_1",
+	Difficulty = "Normal",
+	ChallengePod = "ChallengePod1",
+}
+
+local Settings = {}
+
+do 
+	if not isfolder(mainFolder) then
+		makefolder(mainFolder)
+	end
+
+	if not isfolder(path) then
+		makefolder(path)
+	end
+
+	if isfile(ConfigName) then
+		local success, result = pcall(function()
+			return HttpService:JSONDecode(readfile(ConfigName))
+		end)
+
+		if success and type(result) == "table" then
+			Settings = result
+		else
+			Settings = DefaultSettings
+		end
+	else
+		Settings = DefaultSettings
+		writefile(ConfigName, HttpService:JSONEncode(Settings))
+	end
+
+	for key, value in pairs(DefaultSettings) do
+		if Settings[key] == nil then
+			Settings[key] = value
+		end
+	end
+end
+
+function saveConfig()
+	if not isfolder(path) then
+		makefolder(path)
+	end
+	writefile(ConfigName, HttpService:JSONEncode(Settings))
+end
+
+-- Game Timer System
+local GameTimer = {
+	startTime = 0,
+	endTime = 0,
+	isGameRunning = false
+}
+
+function GameTimer:Start()
+	self.startTime = tick()
+	self.isGameRunning = true
+	print("⏰ Started game timer...")
+end
+
+function GameTimer:Stop()
+	if self.isGameRunning then
+		self.endTime = tick()
+		self.isGameRunning = false
+		print("⏱️ Stopped game timer")
+		return self:GetPlayTime()
+	end
+	return "Unknown"
+end
+
+function GameTimer:GetPlayTime()
+	if self.startTime > 0 then
+		local duration = (self.endTime > 0 and self.endTime or tick()) - self.startTime
+		local minutes = math.floor(duration / 60)
+		local seconds = math.floor(duration % 60)
+		return string.format("%02d:%02d", minutes, seconds)
+	end
+	return "00:00"
+end
+
+-- Discord Webhook Functions
+local discordWebhook = {}
+
+-- Support for different executors
+local http_request = http_request or syn and syn.request or request
+local webhookSupported = http_request ~= nil
+
+-- Anti-spam variables
+local lastSentTime = 0
+local COOLDOWN_TIME = 15 -- seconds
+
+-- Function to get current player data
+discordWebhook.getPlayerData = function()
+    -- You'll need to adapt this to Anime Crusaders' data structure
+    -- This is a placeholder structure
+    return {
+        gems = 0, -- Update with actual path
+        coins = 0, -- Update with actual path
+        level = 1, -- Update with actual path
+        experience = 0, -- Update with actual path
+    }
+end
+
+-- Function to get current game info
+discordWebhook.getGameInfo = function()
+    local currentPod = Settings.Pod or "Unknown Pod"
+    local currentLevel = Settings.Level or "Unknown Level"
+    local currentDifficulty = Settings.Difficulty or "Unknown Difficulty"
+    
+    return {
+        pod = currentPod,
+        level = currentLevel,
+        difficulty = currentDifficulty,
+        fullMapName = currentPod .. " - " .. currentLevel .. " (" .. currentDifficulty .. ")"
+    }
+end
+
+-- Function to send Discord embed
+discordWebhook.sendToDiscord = function(gameData, playTime)
+    if not Settings.DiscordEnabled or not webhookSupported then
+        return
+    end
+
+    local currentTime = tick()
+    if currentTime - lastSentTime < COOLDOWN_TIME then
+        print("⏳ Cooldown active, skipping webhook")
+        return
+    end
+    
+    lastSentTime = currentTime
+
+    local embed = {
+        title = "# ANIME CRUSADERS COMPLETED! 🎮⚔️",
+        color = 0x00ff88,
+        fields = {
+            { name = "👤 Player", value = LocalPlayer.Name, inline = false },
+            {
+                name = "Game Info",
+                value = string.format(
+                    "**Map:** %s\n**Time:** %s\n💎 Gems: **%s**\n🪙 Coins: **%s**",
+                    gameData.fullMapName,
+                    playTime,
+                    tostring(gameData.gems),
+                    tostring(gameData.coins)
+                ),
+                inline = false
+            }
+        },
+        footer = { text = "Zepthic AC  •  " .. os.date("%H:%M:%S") },
+        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+    }
+
+    local payload = HttpService:JSONEncode({
+        username = "Zepthic AC Bot",
+        avatar_url = "https://i.imgur.com/your-bot-avatar.gif",
+        embeds = {embed}
+    })
+
+    local success, response = pcall(function()
+        return http_request({
+            Url = Settings.DiscordURL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = payload
+        })
+    end)
+
+    if success then
+        print("✅ Webhook sent successfully!")
+    else
+        warn("❌ Webhook failed: " .. tostring(response))
+    end
+end
+
+local marco = {}
+local func = {}
+
+-- Load Marco files
+if isfolder(path.."/Marco") then
+	for _, filePath in ipairs(listfiles(path.."/Marco")) do
+		local name = filePath:match("^.+[/\\]([^/\\]+)")
+		if name then
+			table.insert(marco, name)
+		end
+	end
+end
+
+convertInstance = (function(v)
+	local success, path = pcall(function()
+		return v:GetFullName()
+	end)
+	if success then
+		return "game."..path
+	end
+	return tostring(v)
+end)
+
+safeSerialize = (function(args)
+    local result = {}
+    for _, v in ipairs(args) do
+        if typeof(v) == "Instance" then
+            table.insert(result, convertInstance(v))
+        else
+            table.insert(result, v)
+        end
+    end
+    return result
+end)
+
+local recordEntry = {}
+
+-- Marco Recording Hook
+local oldNamecall; oldNamecall = getfenv().hookmetamethod(game, "__namecall", function(self, ...)
+	local method = getfenv().getnamecallmethod()
+	if method == "InvokeServer" or method == "FireServer" then
+		if _G.RecordingMarco then
+			local args = {...}
+			local safeArgs = safeSerialize(args)
+
+			table.insert(recordEntry,{
+				path = convertInstance(self),
+				args = safeArgs,
+				method = method
+			})
+
+			local filePath = path .. "/Marco/" .. _G.Marco
+			_G.existing = {}
+
+			if isfile(filePath) then
+				local ok, content = pcall(readfile, filePath)
+				if ok and content and content ~= "" then
+					local success, data = pcall(HttpService.JSONDecode, HttpService, content)
+					if success and type(data) == "table" then
+						local filtered = {}
+						for _, v in ipairs(data) do
+							if type(v) == "table" then
+								table.insert(filtered, v)
+							end
+						end
+						_G.existing = filtered
+					end
+				end
+			end
+
+			table.insert(_G.existing, recordEntry)
+		end
+		if method == "InvokeServer" then
+			return self:InvokeServer(...)
+		else
+			return self:FireServer(...)
+		end
+	end
+	return oldNamecall(self, ...)
+end)
+
+-- Game Functions
+func['JoinStoryPod'] = (function()
+    while _G.JoinStoryPod do 
+        task.wait(1)
+        pcall(function()
+            -- Join Pod
+            local args = {
+                _G.Pod
+            }
+            replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("request_join_lobby"):InvokeServer(unpack(args))
+            
+            task.wait(2)
+            
+            -- Lock Level
+            local lockArgs = {
+                _G.Pod,
+                _G.Level,
+                false,
+                _G.Difficulty
+            }
+            replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("request_lock_level"):InvokeServer(unpack(lockArgs))
+            
+            task.wait(2)
+            
+            -- Start Game
+            local startArgs = {
+                _G.Pod
+            }
+            replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("request_start_game"):InvokeServer(unpack(startArgs))
+        end)
+    end
+end)
+
+func['JoinChallenge'] = (function()
+    while _G.JoinChallenge do 
+        task.wait(1)
+        pcall(function()
+            -- Join Challenge Pod
+            local args = {
+                _G.ChallengePod
+            }
+            replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("request_join_lobby"):InvokeServer(unpack(args))
+            
+            task.wait(2)
+            
+            -- Start Challenge
+            local startArgs = {
+                _G.ChallengePod
+            }
+            replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("request_start_game"):InvokeServer(unpack(startArgs))
+        end)
+    end
+end)
+
+func['AutoRetry'] = (function()
+	while _G.AutoRetry do
+		task.wait(1)
+		pcall(function()
+			local args = {
+				"replay"
+			}
+			replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("set_game_finished_vote"):InvokeServer(unpack(args))
+		end)
+	end
+end)
+
+func['AutoNext'] = (function()
+	while _G.AutoNext do
+		task.wait(1)
+		pcall(function()
+			local args = {
+				"Next Story"
+			}
+			replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("set_game_finished_vote"):InvokeServer(unpack(args))
+		end)
+	end
+end)
+
+func['RecordingMarco'] = (function()
+	while _G.RecordingMarco do 
+        task.wait(0.5)
+		pcall(function()
+            local filePath = path .. "/Marco/" .. _G.Marco
+			writefile(filePath, HttpService:JSONEncode(_G.existing))
+		end)
+	end
+end)
+
+func['Playbackmarco'] = (function()
+	while _G.Playbackmarco do 
+        task.wait()
+		pcall(function()
+			local filePath = path.."/Marco/".._G.Marco
+			if isfile(filePath) then
+				local content = readfile(filePath)
+				local data = HttpService:JSONDecode(content)
+
+				for _, record in ipairs(data) do
+					local remotePath = record.path
+					local args = record.args
+					local method = record.method or "FireServer"
+
+					local s = remotePath:split(".")
+					local current = game
+					for i = 2, #s do
+						if current and typeof(current) == "Instance" then
+							current = current:FindFirstChild(s[i])
+						end
+					end
+
+					if typeof(args) == "string" then
+						args = { args }
+					end
+
+					local realArgs = {}
+					for _, arg in ipairs(args) do
+						if typeof(arg) == "string" and arg:match("^game%.") then
+							local pathParts = arg:split(".")
+							local inst = game
+							for i = 2, #pathParts do
+								if inst and typeof(inst) == "Instance" then
+									inst = inst:FindFirstChild(pathParts[i])
+								end
+							end
+							table.insert(realArgs, inst or arg)
+						else
+							table.insert(realArgs, arg)
+						end
+					end
+
+					if current and typeof(current) == "Instance" then
+						if method == "InvokeServer" then
+							current:InvokeServer(unpack(realArgs))
+						else
+							current:FireServer(unpack(realArgs))
+						end
+						task.wait(0.8)
+					end
+				end
+			end
+		end)
+	end
+end)
+
+func['WhiteScreen'] = (function()
+	if _G.WhiteScreen then
+		RunService:Set3dRenderingEnabled(false)
+	else
+		RunService:Set3dRenderingEnabled(true)
+	end
+end)
+
+func['DiscordEnabled'] = (function()
+	if Settings.DiscordEnabled then
+		print("✅ Discord Webhook enabled")
+	else
+		print("❌ Discord Webhook disabled")
+	end
+end)
+
+-- Discord Event Setup
+if webhookSupported then
+    spawn(function()
+        -- Listen for game start
+        local gameStartConnection
+        gameStartConnection = RunService.Heartbeat:Connect(function()
+            -- You'll need to adapt this condition for Anime Crusaders
+            if workspace:FindFirstChild('Map') and not GameTimer.isGameRunning then
+                GameTimer:Start()
+            end
+        end)
+
+        -- Listen for game end - you'll need to find the correct event for Anime Crusaders
+        -- This is a placeholder - replace with actual game end detection
+        spawn(function()
+            while true do
+                task.wait(5)
+                -- Add game end detection logic here
+                -- When game ends, call:
+                -- local playTime = GameTimer:Stop()
+                -- local gameData = discordWebhook.getGameInfo()
+                -- discordWebhook.sendToDiscord(gameData, playTime)
+            end
+        end)
+    end)
+end
+
+local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/Yenixs/GUI/refs/heads/main/FLUENT"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+do 
+	if LocalPlayer.PlayerGui:FindFirstChild("Roblox/Fluent") then
+		local ScreenGui = Instance.new("ScreenGui")
+		local Frame = Instance.new("Frame")
+		local UICorner = Instance.new("UICorner")
+		local ImageButton = Instance.new("ImageButton")
+
+		ScreenGui.Name = "ScreenGuis"
+		ScreenGui.Parent = LocalPlayer.PlayerGui
+
+		Frame.Parent = ScreenGui
+		Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		Frame.BackgroundTransparency = 0.700
+		Frame.BorderColor3 = Color3.fromRGB(0, 0, 0)
+		Frame.BorderSizePixel = 0
+		Frame.Position = UDim2.new(0.474052399, 0, 0.046491228, 0)
+		Frame.Size = UDim2.new(0.0340000018, 0, 0.0700000003, 0)
+
+		UICorner.Parent = Frame
+
+		ImageButton.Parent = Frame
+		ImageButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		ImageButton.BackgroundTransparency = 1.000
+		ImageButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
+		ImageButton.BorderSizePixel = 0
+		ImageButton.Position = UDim2.new(-0.0250000004, 0, -0.027777778, 0)
+		ImageButton.Size = UDim2.new(1.1, 0, 1.1, 0)
+		ImageButton.Image = "rbxassetid://103816145608946"
+
+		ImageButton.MouseButton1Click:Connect(function()
+			LocalPlayer.PlayerGui["Roblox/Fluent"]:GetChildren()[2].Visible = not LocalPlayer.PlayerGui["Roblox/Fluent"]:GetChildren()[2].Visible
+		end)
+	end
+end 
+
+local Window = Fluent:CreateWindow({
+	Title = "Zepthic AC",
+	SubTitle = "Anime Crusaders",
+	TabWidth = 160,
+	Size = UDim2.fromOffset(580, 360),
+	Acrylic = false,
+	Theme = "Dark",
+	MinimizeKey = Enum.KeyCode.LeftControl 
+})
+
+local Tabs = {
+	AutoJoin = Window:AddTab({ Title = "Auto Join", Icon = "upload" }),
+	GamePlay = Window:AddTab({ Title = "Marco", Icon = "play" }),
+	Games = Window:AddTab({ Title = "Game", Icon = "box" }),
+	Discord = Window:AddTab({ Title = "Discord", Icon = "message-circle" }),
+	Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+}
+
+local Options = Fluent.Options
+
+local function Dropdown(tab, title, values, default, callback)
+	local dropdown = tab:AddDropdown(title, {
+		Title = title,
+		Values = values,
+		Multi = false,
+		Default = default
+	})
+	dropdown:OnChanged(callback)
+	return dropdown
+end
+
+local function Toggle(tab, title, settings)
+	local toggle = tab:AddToggle(title, { Title = title, Default = Settings[settings] })
+	toggle:OnChanged(function(value)
+		Settings[settings] = value
+		_G[settings] = Settings[settings]
+		saveConfig()
+		if func[settings] then
+			task.spawn(func[settings])
+		end
+	end)	
+	return toggle
+end
+
+do 
+	Fluent:Notify({
+		Title = "Zepthic AC",
+		Content = "Loading Anime Crusaders Script...",
+		Duration = 3
+	})
+	
+	-- Auto Join Tab
+	Tabs.AutoJoin:AddSection("Story Mode")
+	
+	Dropdown(Tabs.AutoJoin, "Pod (P1-P8): ", {'P1','P2','P3','P4','P5','P6','P7','P8'}, Settings.Pod, function(value)
+		Settings.Pod = value
+		_G.Pod = value
+		saveConfig()
+	end)
+	
+	Dropdown(Tabs.AutoJoin, "World & Level: ", {
+		'namek_level_1','namek_level_2','namek_level_3','namek_level_4','namek_level_5','namek_level_6',
+		'marineford_level_1','marineford_level_2','marineford_level_3','marineford_level_4','marineford_level_5','marineford_level_6',
+		'karakura_level_1','karakura_level_2','karakura_level_3','karakura_level_4','karakura_level_5','karakura_level_6',
+		'shibuya_level_1','shibuya_level_2','shibuya_level_3','shibuya_level_4','shibuya_level_5','shibuya_level_6'
+	}, Settings.Level, function(value)
+		Settings.Level = value
+		_G.Level = value
+		saveConfig()
+	end)
+	
+	Dropdown(Tabs.AutoJoin, "Difficulty: ", {'Normal','Hard'}, Settings.Difficulty, function(value)
+		Settings.Difficulty = value
+		_G.Difficulty = value
+		saveConfig()
+	end)
+	
+    Toggle(Tabs.AutoJoin, "Auto Join Story Pod", "JoinStoryPod")
+	
+	Tabs.AutoJoin:AddSection("Challenge Mode")
+	
+	Dropdown(Tabs.AutoJoin, "Challenge Pod: ", {'ChallengePod1','ChallengePod2','ChallengePod4','ChallengePod5','ChallengePod6'}, Settings.ChallengePod, function(value)
+		Settings.ChallengePod = value
+		_G.ChallengePod = value
+		saveConfig()
+	end)
+	
+	Toggle(Tabs.AutoJoin, "Auto Join Challenge", "JoinChallenge")
+	
+	Tabs.AutoJoin:AddSection("Manual Actions")
+	Tabs.AutoJoin:AddButton({
+		Title = "Join Selected Pod",
+		Description = "Manually join the selected story pod",
+		Callback = function()
+			local args = { _G.Pod }
+			replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("request_join_lobby"):InvokeServer(unpack(args))
+		end
+	})
+	
+	Tabs.AutoJoin:AddButton({
+		Title = "Lock & Start Game",
+		Description = "Lock level and start the game",
+		Callback = function()
+			-- Lock Level
+			local lockArgs = { _G.Pod, _G.Level, false, _G.Difficulty }
+			replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("request_lock_level"):InvokeServer(unpack(lockArgs))
+			
+			task.wait(1)
+			
+			-- Start Game
+			local startArgs = { _G.Pod }
+			replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("request_start_game"):InvokeServer(unpack(startArgs))
+		end
+	})
+	
+	-- Marco Tab
+	Tabs.GamePlay:AddSection("Marco Management")
+	local marcoDropdown = Dropdown(Tabs.GamePlay, "Select Marco: ", marco, Settings.Marco, function(value)
+		Settings.Marco = value
+		_G.Marco = value
+		saveConfig()
+	end)
+	
+	Tabs.GamePlay:AddButton({
+		Title = "Refresh Marco List",
+		Description = "Reload available marco files",
+		Callback = function()
+			table.clear(marco)
+			if isfolder(path.."/Marco") then
+				for _, filePath in ipairs(listfiles(path.."/Marco")) do
+					local name = filePath:match("^.+[/\\]([^/\\]+)")
+					if name then
+						table.insert(marco, name)
+					end
+				end
+			end
+			marcoDropdown:SetValues(marco)
+			Fluent:Notify({
+				Title = "Marco Manager",
+				Content = "Marco list refreshed successfully!",
+				Duration = 3
+			})
+		end
+	})
+	
+	Tabs.GamePlay:AddButton({
+		Title = "Delete Selected Marco",
+		Description = "Delete the currently selected marco file",
+		Callback = function()
+			if not _G.Marco then
+				Fluent:Notify({
+					Title = "Marco Manager",
+					Content = "Please select a marco file first!",
+					Duration = 3
+				})
+				return
+			end
+			
+			local filePath = path.."/Marco/".._G.Marco
+			if isfile(filePath) then
+				delfile(filePath)
+				
+				for i, v in pairs(marco) do
+					if v == _G.Marco then
+						table.remove(marco, i)
+						break
+					end
+				end
+				
+				marcoDropdown:SetValues(marco)
+				_G.Marco = nil
+				
+				Fluent:Notify({
+					Title = "Marco Manager",
+					Content = "Marco deleted successfully!",
+					Duration = 3
+				})
+			end
+		end
+	})
+	
+	Tabs.GamePlay:AddSection("Create New Marco")
+	local marcoNameInput
+	marcoNameInput = Tabs.GamePlay:AddInput("MarcoName", {
+        Title = "Marco File Name",
+        Default = "",
+        Placeholder = "Enter marco name (without .json)",
+        Numeric = false, 
+        Finished = false,
+        Callback = function(Value)
+            _G.MarcoName = Value
+        end
+    })
+	
+	Tabs.GamePlay:AddButton({
+		Title = "Create Marco File",
+		Description = "Create a new empty marco file",
+		Callback = function()
+			if not _G.MarcoName or _G.MarcoName == "" then
+				Fluent:Notify({
+					Title = "Marco Creator",
+					Content = "Please enter a marco name!",
+					Duration = 3
+				})
+				return
+			end
+			
+			if not isfolder(path.."/Marco") then
+				makefolder(path.."/Marco")
+			end
+
+			local fileName = _G.MarcoName.."-"..LocalPlayer.Name..".json"
+			local filePath = path.."/Marco/"..fileName
+			
+			if isfile(filePath) then
+				Fluent:Notify({
+					Title = "Marco Creator",
+					Content = "Marco file already exists!",
+					Duration = 3
+				})
+			else
+				writefile(filePath, HttpService:JSONEncode({})) 
+				table.insert(marco, fileName)
+				marcoDropdown:SetValues(marco)
+				
+				Fluent:Notify({
+					Title = "Marco Creator",
+					Content = "Marco file created successfully!",
+					Duration = 3
+				})
+			end
+		end
+	})
+	
+	Tabs.GamePlay:AddSection("Marco Controls")
+	Toggle(Tabs.GamePlay, "Marco Playback", "Playbackmarco")
+	Toggle(Tabs.GamePlay, "Marco Recording", "RecordingMarco")
+	
+	Tabs.GamePlay:AddSection("Game Actions Info")
+	Tabs.GamePlay:AddParagraph({
+		Title = "Recorded Actions:",
+		Content = "• spawn_unit - Place units\n• upgrade_unit_ingame - Upgrade units\n• cycle_priority - Change targeting\n• sell_unit_ingame - Sell units"
+	})
+	
+	-- Games Tab
+	Tabs.Games:AddSection("Auto Features")
+	Toggle(Tabs.Games, "Auto Retry", "AutoRetry")
+	Toggle(Tabs.Games, "Auto Next", "AutoNext")
+	
+	Tabs.Games:AddSection("Game Timer")
+	Tabs.Games:AddButton({
+		Title = "Show Current Time",
+		Description = "Display current game session time",
+		Callback = function()
+			local currentTime = GameTimer:GetPlayTime()
+			local status = GameTimer.isGameRunning and "Running" or "Stopped"
+			
+			Fluent:Notify({
+				Title = "Game Timer",
+				Content = string.format("Time: %s\nStatus: %s", currentTime, status),
+				Duration = 3
+			})
+		end
+	})
+	
+	Tabs.Games:AddButton({
+		Title = "Reset Timer",
+		Description = "Reset the game timer",
+		Callback = function()
+			GameTimer.startTime = 0
+			GameTimer.endTime = 0
+			GameTimer.isGameRunning = false
+			
+			Fluent:Notify({
+				Title = "Game Timer",
+				Content = "Timer reset successfully!",
+				Duration = 3
+			})
+		end
+	})
+	
+	-- Discord Tab
+	Tabs.Discord:AddSection("Discord Webhook Settings")
+	
+	if not webhookSupported then
+		Tabs.Discord:AddParagraph({
+			Title = "⚠️ Warning",
+			Content = "Your executor does not support HTTP requests. Discord webhook functionality will not work."
+		})
+	else
+		Tabs.Discord:AddParagraph({
+			Title = "✅ HTTP Support",
+			Content = "Your executor supports HTTP requests. Discord webhook is ready to use!"
+		})
+	end
+	
+	Toggle(Tabs.Discord, "Enable Discord Notifications", "DiscordEnabled")
+	
+	Tabs.Discord:AddInput("DiscordURL", {
+        Title = "Discord Webhook URL",
+        Default = Settings.DiscordURL or "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL",
+        Placeholder = "Paste your Discord webhook URL here",
+        Numeric = false, 
+        Finished = false,
+        Callback = function(Value)
+            Settings.DiscordURL = Value
+			_G.DiscordURL = Value
+			saveConfig()
+        end
+    })
+	
+	Tabs.Discord:AddButton({
+		Title = "Test Webhook",
+		Description = "Send a test message to Discord",
+		Callback = function()
+			if not Settings.DiscordEnabled then
+				Fluent:Notify({
+					Title = "Discord Webhook",
+					Content = "Please enable Discord Webhook first!",
+					Duration = 3
+				})
+				return
+			end
+			
+			if not webhookSupported then
+				Fluent:Notify({
+					Title = "Discord Webhook", 
+					Content = "Your executor doesn't support HTTP requests!",
+					Duration = 3
+				})
+				return
+			end
+			
+			local gameData = discordWebhook.getGameInfo()
+			local playTime = GameTimer:GetPlayTime()
+			
+			local testEmbed = {
+				title = "🧪 Test Message from Zepthic AC",
+				description = "This is a test message to verify webhook functionality!",
+				color = 0x00ff00,
+				fields = {
+					{ name = "👤 Player", value = LocalPlayer.Name, inline = true },
+					{ name = "🎮 Game", value = "Anime Crusaders", inline = true },
+					{ name = "🗺️ Current Setup", value = gameData.fullMapName, inline = true },
+					{ name = "⏰ Session Time", value = playTime, inline = true },
+					{ name = "✨ Status", value = "Webhook Working Perfectly!", inline = true }
+				},
+				footer = { text = "Zepthic AC Script  •  " .. os.date("%H:%M:%S") },
+				timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+			}
+
+			local payload = HttpService:JSONEncode({
+				username = "🤖 Zepthic AC Test Bot",
+				avatar_url = "https://i.imgur.com/your-bot-avatar.gif",
+				embeds = {testEmbed}
+			})
+
+			local success, response = pcall(function()
+				return http_request({
+					Url = Settings.DiscordURL,
+					Method = "POST",
+					Headers = {["Content-Type"] = "application/json"},
+					Body = payload
+				})
+			end)
+
+			if success then
+				Fluent:Notify({
+					Title = "Discord Webhook",
+					Content = "✅ Test message sent successfully!",
+					Duration = 3
+				})
+			else
+				Fluent:Notify({
+					Title = "Discord Webhook",
+					Content = "❌ Failed to send test message. Check your URL!",
+					Duration = 5
+				})
+			end
+		end
+	})
+	
+	Tabs.Discord:AddSection("Webhook Information")
+	Tabs.Discord:AddParagraph({
+		Title = "📝 How to get Discord Webhook URL:",
+		Content = "1. Go to your Discord server\n2. Right-click on a text channel\n3. Select 'Edit Channel'\n4. Go to 'Integrations' tab\n5. Click 'Create Webhook'\n6. Copy the webhook URL and paste it above"
+	})
+	
+	Tabs.Discord:AddParagraph({
+		Title = "🎯 Features:",
+		Content = "• Game completion notifications\n• Pod and level tracking\n• Play time measurement\n• Player stats display\n• Anti-spam protection\n• Beautiful embed messages"
+	})
+	
+	Tabs.Discord:AddSection("Webhook Preview")
+	Tabs.Discord:AddButton({
+		Title = "Preview Current Game Data",
+		Description = "See what data will be sent to Discord",
+		Callback = function()
+			local gameData = discordWebhook.getGameInfo()
+			local playTime = GameTimer:GetPlayTime()
+			
+			local previewText = string.format(
+				"Pod: %s\nLevel: %s\nDifficulty: %s\nTime: %s",
+				gameData.pod,
+				gameData.level,
+				gameData.difficulty,
+				playTime
+			)
+			
+			Fluent:Notify({
+				Title = "Discord Preview",
+				Content = previewText,
+				Duration = 5
+			})
+		end
+	})
+	
+	-- Settings Tab
+	Tabs.Settings:AddSection("Performance")
+	Toggle(Tabs.Settings, "White Screen (Performance)", "WhiteScreen")
+	
+	Tabs.Settings:AddSection("Debug Information")
+	Tabs.Settings:AddButton({
+		Title = "Show Script Info",
+		Description = "Display current script status",
+		Callback = function()
+			local info = string.format(
+				"Script: Zepthic AC v1.0\nPlayer: %s\nGame Timer: %s\nWebhook: %s\nMarcos Available: %d\nCurrent Pod: %s\nCurrent Level: %s",
+				LocalPlayer.Name,
+				GameTimer.isGameRunning and "Running" or "Stopped",
+				webhookSupported and "Supported" or "Not Supported",
+				#marco,
+				Settings.Pod or "None",
+				Settings.Level or "None"
+			)
+			
+			Fluent:Notify({
+				Title = "Script Information",
+				Content = info,
+				Duration = 5
+			})
+		end
+	})
+	
+	Tabs.Settings:AddButton({
+		Title = "Show Current Game State",
+		Description = "Display current game information",
+		Callback = function()
+			local gameInfo = string.format(
+				"Selected Pod: %s\nSelected Level: %s\nDifficulty: %s\nChallenge Pod: %s\nGame Running: %s",
+				_G.Pod or "None",
+				_G.Level or "None", 
+				_G.Difficulty or "None",
+				_G.ChallengePod or "None",
+				GameTimer.isGameRunning and "Yes" or "No"
+			)
+			
+			Fluent:Notify({
+				Title = "Game State",
+				Content = gameInfo,
+				Duration = 5
+			})
+		end
+	})
+	
+	Tabs.Settings:AddSection("Game Remotes Info")
+	Tabs.Settings:AddParagraph({
+		Title = "Available Remotes:",
+		Content = "• request_join_lobby - Join pods\n• request_lock_level - Lock level selection\n• request_start_game - Start the game\n• set_game_finished_vote - Vote retry/next\n• spawn_unit - Place units (Marco)\n• upgrade_unit_ingame - Upgrade units (Marco)\n• cycle_priority - Change targeting (Marco)\n• sell_unit_ingame - Sell units (Marco)"
+	})
+end
+
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+
+InterfaceManager:SetFolder("FluentScriptHub")
+SaveManager:SetFolder("FluentScriptHub/anime-crusaders")
+
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+
+Window:SelectTab(1)
+
+Fluent:Notify({
+	Title = "Zepthic AC v1.0 Loaded Successfully! 🎉",
+	Content = "Ready for Anime Crusaders automation!",
+	Duration = 5
+})
+
+SaveManager:LoadAutoloadConfig()
