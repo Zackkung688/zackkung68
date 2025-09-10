@@ -626,27 +626,103 @@ do
 	
 	Tabs.AutoJoin:AddSection("Manual Actions")
 	Tabs.AutoJoin:AddButton({
-		Title = "Join Selected Pod",
-		Description = "Manually join the selected story pod",
+		Title = "Test Join Pod",
+		Description = "Test joining the selected pod manually",
 		Callback = function()
-			local args = { _G.Pod }
-			replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("request_join_lobby"):InvokeServer(unpack(args))
+			pcall(function()
+				print("Testing pod join with:", _G.Pod)
+				game:GetService("ReplicatedStorage").endpoints.client_to_server.request_join_lobby:InvokeServer(_G.Pod or "P1")
+				
+				Fluent:Notify({
+					Title = "Pod Join Test",
+					Content = "Attempted to join pod: " .. (_G.Pod or "P1"),
+					Duration = 3
+				})
+			end)
 		end
 	})
 	
 	Tabs.AutoJoin:AddButton({
-		Title = "Lock & Start Game",
-		Description = "Lock level and start the game",
+		Title = "Test Lock Level",
+		Description = "Test locking the selected level",
 		Callback = function()
-			-- Lock Level
-			local lockArgs = { _G.Pod, _G.Level, false, _G.Difficulty }
-			replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("request_lock_level"):InvokeServer(unpack(lockArgs))
+			pcall(function()
+				print("Testing level lock:", _G.Pod, _G.Level, _G.Difficulty)
+				game:GetService("ReplicatedStorage").endpoints.client_to_server.request_lock_level:InvokeServer(
+					_G.Pod or "P1", 
+					_G.Level or "namek_level_1", 
+					false, 
+					_G.Difficulty or "Normal"
+				)
+				
+				Fluent:Notify({
+					Title = "Level Lock Test",
+					Content = "Attempted to lock: " .. (_G.Level or "namek_level_1"),
+					Duration = 3
+				})
+			end)
+		end
+	})
+	
+	Tabs.AutoJoin:AddButton({
+		Title = "Test Start Game",
+		Description = "Test starting the game",
+		Callback = function()
+			pcall(function()
+				print("Testing game start with:", _G.Pod)
+				game:GetService("ReplicatedStorage").endpoints.client_to_server.request_start_game:InvokeServer(_G.Pod or "P1")
+				
+				Fluent:Notify({
+					Title = "Game Start Test",
+					Content = "Attempted to start game in pod: " .. (_G.Pod or "P1"),
+					Duration = 3
+				})
+			end)
+		end
+	})
+	
+	Tabs.AutoJoin:AddButton({
+		Title = "Check Remote Paths",
+		Description = "Verify if the remote endpoints exist",
+		Callback = function()
+			local status = {}
 			
-			task.wait(1)
+			if game:GetService("ReplicatedStorage"):FindFirstChild("endpoints") then
+				table.insert(status, "✅ endpoints found")
+				
+				if game:GetService("ReplicatedStorage").endpoints:FindFirstChild("client_to_server") then
+					table.insert(status, "✅ client_to_server found")
+					
+					local cts = game:GetService("ReplicatedStorage").endpoints.client_to_server
+					if cts:FindFirstChild("request_join_lobby") then
+						table.insert(status, "✅ request_join_lobby found")
+					else
+						table.insert(status, "❌ request_join_lobby NOT found")
+					end
+					
+					if cts:FindFirstChild("request_lock_level") then
+						table.insert(status, "✅ request_lock_level found")
+					else
+						table.insert(status, "❌ request_lock_level NOT found")
+					end
+					
+					if cts:FindFirstChild("request_start_game") then
+						table.insert(status, "✅ request_start_game found")
+					else
+						table.insert(status, "❌ request_start_game NOT found")
+					end
+				else
+					table.insert(status, "❌ client_to_server NOT found")
+				end
+			else
+				table.insert(status, "❌ endpoints NOT found")
+			end
 			
-			-- Start Game
-			local startArgs = { _G.Pod }
-			replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("request_start_game"):InvokeServer(unpack(startArgs))
+			Fluent:Notify({
+				Title = "Remote Path Check",
+				Content = table.concat(status, "\n"),
+				Duration = 8
+			})
 		end
 	})
 	
