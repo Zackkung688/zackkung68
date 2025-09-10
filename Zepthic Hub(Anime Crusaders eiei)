@@ -350,93 +350,107 @@ func['JoinChallenge'] = (function()
 end)
 
 func['AutoRetry'] = (function()
-	while _G.AutoRetry do
-		task.wait(1)
-		pcall(function()
-			local args = {
-				"replay"
-			}
-			replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("set_game_finished_vote"):InvokeServer(unpack(args))
-		end)
-	end
+	spawn(function()
+		while _G.AutoRetry do
+			task.wait(2)
+			pcall(function()
+				local args = { "replay" }
+				replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("set_game_finished_vote"):InvokeServer(unpack(args))
+			end)
+		end
+	end)
 end)
 
 func['AutoNext'] = (function()
-	while _G.AutoNext do
-		task.wait(1)
-		pcall(function()
-			local args = {
-				"Next Story"
-			}
-			replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("set_game_finished_vote"):InvokeServer(unpack(args))
-		end)
-	end
+	spawn(function()
+		while _G.AutoNext do
+			task.wait(2)
+			pcall(function()
+				local args = { "next" }
+				replicated:WaitForChild("endpoints"):WaitForChild("client_to_server"):WaitForChild("set_game_finished_vote"):InvokeServer(unpack(args))
+			end)
+		end
+	end)
 end)
 
 func['RecordingMarco'] = (function()
-	while _G.RecordingMarco do 
-        task.wait(0.5)
-		pcall(function()
-            local filePath = path .. "/Marco/" .. _G.Marco
-			writefile(filePath, HttpService:JSONEncode(_G.existing))
-		end)
-	end
+	spawn(function()
+		while _G.RecordingMarco do 
+			task.wait(1)
+			pcall(function()
+				if _G.Marco and _G.existing then
+					local filePath = path .. "/Marco/" .. _G.Marco
+					writefile(filePath, HttpService:JSONEncode(_G.existing))
+				end
+			end)
+		end
+	end)
 end)
 
 func['Playbackmarco'] = (function()
-	while _G.Playbackmarco do 
-        task.wait()
-		pcall(function()
-			local filePath = path.."/Marco/".._G.Marco
-			if isfile(filePath) then
-				local content = readfile(filePath)
-				local data = HttpService:JSONDecode(content)
+	spawn(function()
+		while _G.Playbackmarco do 
+			task.wait(1)
+			pcall(function()
+				if not _G.Marco then return end
+				
+				local filePath = path.."/Marco/".._G.Marco
+				if isfile(filePath) then
+					local content = readfile(filePath)
+					local data = HttpService:JSONDecode(content)
 
-				for _, record in ipairs(data) do
-					local remotePath = record.path
-					local args = record.args
-					local method = record.method or "FireServer"
+					for _, record in ipairs(data) do
+						if not _G.Playbackmarco then break end
+						
+						local remotePath = record.path
+						local args = record.args
+						local method = record.method or "FireServer"
 
-					local s = remotePath:split(".")
-					local current = game
-					for i = 2, #s do
-						if current and typeof(current) == "Instance" then
-							current = current:FindFirstChild(s[i])
-						end
-					end
-
-					if typeof(args) == "string" then
-						args = { args }
-					end
-
-					local realArgs = {}
-					for _, arg in ipairs(args) do
-						if typeof(arg) == "string" and arg:match("^game%.") then
-							local pathParts = arg:split(".")
-							local inst = game
-							for i = 2, #pathParts do
-								if inst and typeof(inst) == "Instance" then
-									inst = inst:FindFirstChild(pathParts[i])
-								end
+						local s = remotePath:split(".")
+						local current = game
+						for i = 2, #s do
+							if current and typeof(current) == "Instance" then
+								current = current:FindFirstChild(s[i])
+							else
+								break
 							end
-							table.insert(realArgs, inst or arg)
-						else
-							table.insert(realArgs, arg)
 						end
-					end
 
-					if current and typeof(current) == "Instance" then
-						if method == "InvokeServer" then
-							current:InvokeServer(unpack(realArgs))
-						else
-							current:FireServer(unpack(realArgs))
+						if typeof(args) == "string" then
+							args = { args }
 						end
-						task.wait(0.8)
+
+						local realArgs = {}
+						for _, arg in ipairs(args) do
+							if typeof(arg) == "string" and arg:match("^game%.") then
+								local pathParts = arg:split(".")
+								local inst = game
+								for i = 2, #pathParts do
+									if inst and typeof(inst) == "Instance" then
+										inst = inst:FindFirstChild(pathParts[i])
+									else
+										break
+									end
+								end
+								table.insert(realArgs, inst or arg)
+							else
+								table.insert(realArgs, arg)
+							end
+						end
+
+						if current and typeof(current) == "Instance" then
+							if method == "InvokeServer" then
+								current:InvokeServer(unpack(realArgs))
+							else
+								current:FireServer(unpack(realArgs))
+							end
+							task.wait(0.8)
+						end
 					end
 				end
-			end
-		end)
-	end
+			end)
+		end
+	end)
 end)
 
 func['WhiteScreen'] = (function()
