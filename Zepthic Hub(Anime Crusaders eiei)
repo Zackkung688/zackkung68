@@ -641,6 +641,17 @@ func['AutoNext'] = (function()
 	end
 end)
 
+func['AutoEndure'] = (function()
+	while _G.AutoEndure do
+		task.wait(1)
+		pcall(function()
+			if workspace:FindFirstChild('Building') then
+				replicated:WaitForChild("Remote"):WaitForChild("AdventureModeEnd"):FireServer(true)
+			end
+		end)
+	end
+end)
+
 func['RecordingMarco'] = (function()
 	while _G.RecordingMarco do task.wait(0.5)
 		pcall(function()
@@ -1093,6 +1104,7 @@ do
 	Toggle(Tabs.Games, "Auto Play", "AutoPlay")
 	Toggle(Tabs.Games, "Auto Retry", "AutoRetry")
 	Toggle(Tabs.Games, "Auto Next", "AutoNext")
+    Toggle(Tabs.Games, "Auto Endure", "AutoEndure")
 	
 	Tabs.Games:AddSection("Unit Management")
 	local unitsList = {}
