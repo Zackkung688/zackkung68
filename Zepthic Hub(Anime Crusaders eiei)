@@ -378,7 +378,7 @@ discordWebhook.getRewards = function()
                 local finalAmount = totalOwned + rewardAmount
 
                 -- ถ้าเป็น Gem / Gold / Exp ไม่ต้องใส่ [จำนวนที่มี]
-                if name:lower():find("Gem") or name:lower():find("Gold") or name:lower():find("Exp") or name:lower()find("Fall") then
+                if name:lower():find("Gem") or name:lower():find("Gold") or name:lower():find("Exp") or name:lower():find("Fall Currency") then
                     table.insert(rewards, string.format("%s x%d %s", icon, rewardAmount, name))
                 else
                     table.insert(rewards, string.format("%s x%d %s [%d]", icon, rewardAmount, name, finalAmount))
