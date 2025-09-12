@@ -305,7 +305,7 @@ discordWebhook.getRewards = function()
     local rewards = {}
     if not LocalPlayer:FindFirstChild("RewardsShow") then return rewards end
 
-    task.wait(1)
+    task.wait(0.1)
 
     local itemsFolder = replicated:WaitForChild("Player_Data"):WaitForChild(LocalPlayer.Name):WaitForChild("Items")
 
@@ -365,7 +365,7 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
     local rewardText = (#rewardList > 0) and table.concat(rewardList, "\n") or "❌ No Rewards"
 
     local embed = {
-        title = "# GAME IS COMPLETED?! 🎮",
+        title = "# GAME IS COMPLETED?!",
         color = getRandomColor(), -- 🎨 ใช้สีสุ่ม
         fields = {
             { 
@@ -402,7 +402,7 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
 
     local payload = HttpService:JSONEncode({
         username = "Zepthic hub",
-        avatar_url = "https://i.imgur.com/your-bot-avatar.gif",
+        avatar_url = "https://tr.rbxcdn.com/180DAY-c16971484f933ef370edd236f005460c/150/150/Image/Png/noFilter",
         embeds = {embed}
     })
 
@@ -1216,23 +1216,23 @@ do
 			local playTime = GameTimer:GetPlayTime()
 			
 			local testEmbed = {
-				title = "🧪 Test Message from Zepthic ARX",
+				title = "Test Message from Zepthic ARX",
 				description = "This is a test message to verify webhook functionality!",
-				color = 0x00ff00,
+				color = getRandomColor(),
 				fields = {
-					{ name = "👤 Player", value = LocalPlayer.Name, inline = true },
-					{ name = "🎮 Game", value = "Anime Ranger X", inline = true },
-					{ name = "🗺️ Current Map", value = worldInfo.FullMapName, inline = true },
-					{ name = "⏰ Session Time", value = playTime, inline = true },
-					{ name = "✨ Status", value = "Webhook Working Perfectly!", inline = true }
+					{ name = "Player", value = LocalPlayer.Name, inline = true },
+					{ name = "Game", value = "Anime Ranger X", inline = true },
+					{ name = "Current Map", value = worldInfo.FullMapName, inline = true },
+					{ name = "Session Time", value = playTime, inline = true },
+					{ name = "Status", value = "Webhook Working Perfectly!", inline = true }
 				},
 				footer = { text = "Zepthic ARX Script  •  " .. os.date("%H:%M:%S") },
 				timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
 			}
 
 			local payload = HttpService:JSONEncode({
-				username = "🤖 Zepthic Test Bot",
-				avatar_url = "https://i.imgur.com/your-bot-avatar.gif",
+				username = "Zepthic Test ",
+				avatar_url = "https://tr.rbxcdn.com/180DAY-c16971484f933ef370edd236f005460c/150/150/Image/Png/noFilter",
 				embeds = {testEmbed}
 			})
 
