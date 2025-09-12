@@ -258,7 +258,7 @@ local webhookSupported = http_request ~= nil
 local lastSentTime = 0
 local COOLDOWN_TIME = 15 -- วินาที
 
--- ฟังก์ชันดึง Result (ค่าอัพเดตล่าสุด) พร้อม Fall Currency และ Trait Reroll
+-- Replace the existing getPlayerData function with this improved version
 discordWebhook.getPlayerData = function()
     local dataPath = replicated:FindFirstChild("Player_Data")
     if not dataPath then return {} end
@@ -280,16 +280,37 @@ discordWebhook.getPlayerData = function()
         return 0
     end
 
+    -- ดึง Level และ Experience
+    local level = stats:FindFirstChild("Level") and stats.Level.Value or 1
+    local currentExp = stats:FindFirstChild("Exp") and stats.Exp.Value or 0
+    
+    -- คำนวณ EXP ที่ต้องการสำหรับ Level ถัดไป (สูตรทั่วไป - อาจต้องปรับตามเกม)
+    -- สูตรนี้อาจต้องปรับให้เหมาะกับเกม Anime Ranger X
+    local function getRequiredExp(lvl)
+        -- ตัวอย่างสูตร: Level * 1000 + (Level * 50) ^ 1.5
+        -- คุณอาจต้องหาสูตรจริงจากเกม
+        return math.floor(lvl * 1000 + (lvl * 50) ^ 1.2)
+    end
+    
+    local requiredExp = getRequiredExp(level + 1)
+    local levelDisplay = string.format("Level %d [%s/%s]", level, 
+        tostring(currentExp), 
+        tostring(requiredExp)
+    )
+
     return {
         gems = stats:FindFirstChild("Gem") and stats.Gem.Value or 0,
         golds = stats:FindFirstChild("Gold") and stats.Gold.Value or 0,
         rcCells = stats:FindFirstChild("RCCells") and stats.RCCells.Value or 0,
         fallCurrency = stats:FindFirstChild("Fall Currency") and stats["Fall Currency"].Value or 0,
-        traitReroll = getItemAmount(items:FindFirstChild("Trait Reroll"))
+        traitReroll = getItemAmount(items:FindFirstChild("Trait Reroll")),
+        level = level,
+        experience = currentExp,
+        levelDisplay = levelDisplay
     }
 end
 
--- ฟังก์ชันแปลง RewardsShow เป็น text พร้อม emoji + จำนวนที่มีทั้งหมด (รองรับทุกชั้น)
+-- Replace the existing getRewards function with this improved version
 discordWebhook.getRewards = function()
     local rewards = {}
     if not LocalPlayer:FindFirstChild("RewardsShow") then return rewards end
@@ -338,8 +359,9 @@ discordWebhook.getRewards = function()
             if amountObj and (amountObj:IsA("IntValue") or amountObj:IsA("NumberValue")) and amountObj.Value > 0 then
                 local name = folder.Name
                 local icon = getIcon(name)
+                local rewardAmount = amountObj.Value
 
-                -- จำนวนที่มีจริงจาก Items (รองรับ Folder ซ้อน)
+                -- จำนวนที่มีจริงจาก Items (รองรับ Folder ซ้อน) + รวมรางวัลที่จะได้
                 local totalOwned = 0
                 local itemFolder = itemsFolder:FindFirstChild(name)
                 if itemFolder then
@@ -352,11 +374,14 @@ discordWebhook.getRewards = function()
                     end
                 end
 
+                -- สำหรับ Trait Reroll: แสดงจำนวนหลังได้รับรางวัล
+                local finalAmount = totalOwned + rewardAmount
+
                 -- ถ้าเป็น Gem / Gold / Exp ไม่ต้องใส่ [จำนวนที่มี]
-                if name:lower():find("gem") or name:lower():find("gold") or name:lower():find("exp") then
-                    table.insert(rewards, string.format("%s x%d %s", icon, amountObj.Value, name))
+                if name:lower():find("Gem") or name:lower():find("Gold") or name:lower():find("Exp") or name:lower()find("Fall") then
+                    table.insert(rewards, string.format("%s x%d %s", icon, rewardAmount, name))
                 else
-                    table.insert(rewards, string.format("%s x%d %s [%d]", icon, amountObj.Value, name, totalOwned))
+                    table.insert(rewards, string.format("%s x%d %s [%d]", icon, rewardAmount, name, finalAmount))
                 end
             end
         end
@@ -365,7 +390,7 @@ discordWebhook.getRewards = function()
     return rewards
 end
 
--- ฟังก์ชันส่ง Discord Embed
+-- Replace the existing sendToDiscord function with this improved version
 discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTime)
     if not Settings.DiscordEnabled or not webhookSupported then
         return
@@ -377,7 +402,14 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
         title = "# GAME IS COMPLETED?!🍀🎮",
         color = 0x99ff33,
         fields = {
-            { name = "👤 Player", value = LocalPlayer.Name, inline = false },
+            { 
+                name = "Player", 
+                value = string.format("%s\n%s", 
+                    LocalPlayer.Name, 
+                    resultData.levelDisplay or "Level N/A"
+                ), 
+                inline = false 
+            },
             {
                 name = "Result - ข้อมูล",
                 value = string.format(
