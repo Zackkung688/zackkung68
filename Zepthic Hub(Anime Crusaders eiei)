@@ -284,18 +284,17 @@ discordWebhook.getPlayerData = function()
     local level = stats:FindFirstChild("Level") and stats.Level.Value or 1
     local currentExp = stats:FindFirstChild("Exp") and stats.Exp.Value or 0
     
-    -- คำนวณ EXP ที่ต้องการสำหรับ Level ถัดไป (สูตรทั่วไป - อาจต้องปรับตามเกม)
-    -- สูตรนี้อาจต้องปรับให้เหมาะกับเกม Anime Ranger X
+    -- ✅ คำนวณ EXP ที่ต้องการ (ทุกเลเวลเพิ่มขึ้น 100)
     local function getRequiredExp(lvl)
-        -- ตัวอย่างสูตร: Level * 1000 + (Level * 50) ^ 1.5
-        -- คุณอาจต้องหาสูตรจริงจากเกม
-        return math.floor(lvl * 1000 + (lvl * 50) ^ 1.2)
+        return lvl * 100
     end
-    
-    local requiredExp = getRequiredExp(level + 1)
-    local levelDisplay = string.format("Level %d [%s/%s]", level, 
-        tostring(currentExp), 
-        tostring(requiredExp)
+
+    local requiredExp = getRequiredExp(level)
+    local percent = (currentExp / requiredExp) * 100
+
+    -- ✅ แสดงผลพร้อม %
+    local levelDisplay = string.format("Level %d [%d/%d XP] (%.1f%%)", 
+        level, currentExp, requiredExp, percent
     )
 
     return {
@@ -315,7 +314,7 @@ discordWebhook.getRewards = function()
     local rewards = {}
     if not LocalPlayer:FindFirstChild("RewardsShow") then return rewards end
 
-    task.wait(1) -- รอสักครู่ให้ RewardsShow อัพเดต
+    task.wait(0.5) -- รอสักครู่ให้ RewardsShow อัพเดต
 
     local itemsFolder = replicated:WaitForChild("Player_Data"):WaitForChild(LocalPlayer.Name):WaitForChild("Items")
 
@@ -377,8 +376,8 @@ discordWebhook.getRewards = function()
                 -- สำหรับ Trait Reroll: แสดงจำนวนหลังได้รับรางวัล
                 local finalAmount = totalOwned + rewardAmount
 
-                -- ถ้าเป็น Gem / Gold / Exp ไม่ต้องใส่ [จำนวนที่มี]
-                if name:lower():find("Gem") or name:lower():find("Gold") or name:lower():find("Exp") or name:lower():find("Fall Currency") then
+                -- ถ้าเป็น Gem / Gold / Exp / Fall Currency ไม่ต้องใส่ [จำนวนที่มี]
+                if name:lower():find("gem") or name:lower():find("gold") or name:lower():find("exp") or name:lower():find("fall") then
                     table.insert(rewards, string.format("%s x%d %s", icon, rewardAmount, name))
                 else
                     table.insert(rewards, string.format("%s x%d %s [%d]", icon, rewardAmount, name, finalAmount))
@@ -400,7 +399,7 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
 
     local embed = {
         title = "# GAME IS COMPLETED?!🍀🎮",
-        color = 0x99ff33,
+        color = 0xFFD1DC,
         fields = {
             { 
                 name = "Player", 
@@ -413,7 +412,7 @@ discordWebhook.sendToDiscord = function(resultData, rewardList, mapName, playTim
             {
                 name = "Result - ข้อมูล",
                 value = string.format(
-                    "**Map:** %s\n**Time:** %s\n💎 Gems: **%s**\n🪙 Gold: **%s**\n🩸 RC.Cells: **%s**\n🍁 Fall Currency: **%s**\n🧩 Trait Reroll: **%s**",
+                    "**Map:** %s\n**Time:** %s\nGems: **%s**\nGold: **%s**\nRC.Cells: **%s**\nFall Currency: **%s**\nTrait Reroll: **%s**",
                     mapName,
                     playTime,
                     tostring(resultData.gems),
