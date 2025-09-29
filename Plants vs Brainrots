@@ -271,6 +271,8 @@ func['AutoBuySeed'] = function()
 				end
 			end
 			
+			local amount = Settings.BuyAmount or 10
+			
 			-- ซื้อทุกอันที่อยู่ใน list
 			for _, seed in pairs(seedsToBuy) do
 				for i = 1, amount do
@@ -279,7 +281,7 @@ func['AutoBuySeed'] = function()
 				end
 			end
 		end)
-		task.wait(0.05)
+		task.wait(0.01)
 	end
 end
 
@@ -297,7 +299,8 @@ func['AutoBuyGear'] = function()
 					table.insert(gearsToBuy, gear)
 				end
 			end
-            
+			
+			local amount = Settings.BuyAmount or 10
 			
 			for _, gear in pairs(gearsToBuy) do
 				for i = 1, amount do
@@ -306,7 +309,7 @@ func['AutoBuyGear'] = function()
 				end
 			end
 		end)
-		task.wait(0.05)
+		task.wait(0.01)
 	end
 end
 
@@ -430,9 +433,11 @@ Tabs.Farm:AddButton({
 Tabs.Shop:AddSection("Seeds Shop")
 
 Tabs.Shop:AddParagraph({
-	Title = "Ultra Fast Buying",
-	Content = "Auto buy will spam purchase at maximum speed with no delays"
+	Title = "Buy Speed",
+	Content = "Seeds will be bought in bulk for faster purchase"
 })
+
+Slider(Tabs.Shop, "Buy Amount (per cycle)", "BuyAmount", 1, 50, 10)
 
 local seedsDropdown = Tabs.Shop:AddDropdown("SeedsSelect", {
 	Title = "Select Seeds to Buy",
@@ -462,7 +467,33 @@ buyAllSeedsToggle:OnChanged(function(value)
 	saveConfig()
 end)
 
-Toggle(Tabs.Shop, "Auto Buy Seeds (Ultra Fast)", "AutoBuySeed")
+Toggle(Tabs.Shop, "Auto Buy Seeds", "AutoBuySeed")
+
+Tabs.Shop:AddButton({
+	Title = "Buy Seeds Now (Fast)",
+	Description = "Buy selected seeds in bulk instantly",
+	Callback = function()
+		pcall(function()
+			local seedsToBuy = Settings.BuyAllSeeds and AllSeeds or Settings.SelectedSeeds
+			local amount = Settings.BuyAmount or 10
+			
+			-- ซื้อแบบ parallel
+			for i = 1, amount do
+				task.spawn(function()
+					for _, seed in pairs(seedsToBuy) do
+						replicated:WaitForChild("Remotes"):WaitForChild("BuyItem"):FireServer(seed)
+					end
+				end)
+			end
+			
+			Fluent:Notify({
+				Title = "Shop",
+				Content = string.format("Buying %d x %d seeds!", #seedsToBuy, amount),
+				Duration = 3
+			})
+		end)
+	end
+})
 
 Tabs.Shop:AddSection("Gears Shop")
 
@@ -494,7 +525,33 @@ buyAllGearsToggle:OnChanged(function(value)
 	saveConfig()
 end)
 
-Toggle(Tabs.Shop, "Auto Buy Gears (Ultra Fast)", "AutoBuyGear")
+Toggle(Tabs.Shop, "Auto Buy Gears", "AutoBuyGear")
+
+Tabs.Shop:AddButton({
+	Title = "Buy Gears Now (Fast)",
+	Description = "Buy selected gears in bulk instantly",
+	Callback = function()
+		pcall(function()
+			local gearsToBuy = Settings.BuyAllGears and AllGears or Settings.SelectedGears
+			local amount = Settings.BuyAmount or 10
+			
+			-- ซื้อแบบ parallel
+			for i = 1, amount do
+				task.spawn(function()
+					for _, gear in pairs(gearsToBuy) do
+						replicated:WaitForChild("Remotes"):WaitForChild("BuyGear"):FireServer(gear)
+					end
+				end)
+			end
+			
+			Fluent:Notify({
+				Title = "Shop",
+				Content = string.format("Buying %d x %d gears!", #gearsToBuy, amount),
+				Duration = 3
+			})
+		end)
+	end
+})
 
 -- Webhook Tab
 Tabs.Webhook:AddSection("Discord Webhook")
