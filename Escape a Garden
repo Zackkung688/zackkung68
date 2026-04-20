@@ -1,0 +1,618 @@
+-- ============================================================
+--  Escape a Garden — with xlinkx Key System
+-- ============================================================
+
+-- Key System (xlinkx)
+local BASE_URL  = "https://xlinkx.xyz"
+local POST_SLUG = "XDsg4LoA"
+local API_KEY   = "ll_3533c5e97dcba213da1e10f0f4608a7b3ffdb6309be24ffb"
+local KEY_FILE  = "EaG_key.txt"
+
+local HttpService = game:GetService("HttpService")
+local Players     = game:GetService("Players")
+local lp          = Players.LocalPlayer
+
+local HWID = (function()
+    local ok, id = pcall(function()
+        return game:GetService("RbxAnalyticsService"):GetClientId()
+    end)
+    return (ok and id and id ~= "") and id or tostring(lp.UserId)
+end)()
+
+local function checkKey(key)
+    local url = BASE_URL .. "/api/keys/check"
+        .. "?post=" .. HttpService:UrlEncode(POST_SLUG)
+        .. "&key="  .. HttpService:UrlEncode(key)
+        .. "&hwid=" .. HttpService:UrlEncode(HWID)
+    local ok, res = pcall(game.HttpGet, game, url, true)
+    if not ok then return false, "Cannot connect to server" end
+    local ok2, data = pcall(HttpService.JSONDecode, HttpService, res)
+    if not ok2 then return false, "Bad response" end
+    if data.status == "error" then return false, data.message or "Server error" end
+    if not data.valid then return false, data.message or "Key invalid or expired" end
+    if data.hwid_bound and data.hwid_match == false then
+        return false, "HWID mismatch — key bound to another device"
+    end
+    return true, data
+end
+
+local function bindHwid(key)
+    local fn = request or (http and http.request) or (syn and syn.request)
+    if not fn then return end
+    pcall(fn, {
+        Url    = BASE_URL .. "/api/keys/set-hwid",
+        Method = "POST",
+        Headers = { ["Content-Type"] = "application/json" },
+        Body   = HttpService:JSONEncode({
+            post    = POST_SLUG,
+            api_key = API_KEY,
+            key     = key,
+            hwid    = HWID,
+        }),
+    })
+end
+
+-- เช็คคีย์ที่บันทึกไว้
+local verified = false
+local validKey = ""
+
+if isfile(KEY_FILE) then
+    local saved = readfile(KEY_FILE):gsub("%s+", "")
+    if saved ~= "" then
+        local ok, data = checkKey(saved)
+        if ok then
+            verified = true
+            validKey = saved
+            if not data.hwid_bound then bindHwid(saved) end
+        end
+    end
+end
+
+if not verified then
+    -- แสดง UI ขอคีย์
+    local StarterGui = game:GetService("StarterGui")
+    local function notify(text)
+        StarterGui:SetCore("SendNotification", {
+            Title = "EaG Key System", Text = text, Duration = 8,
+        })
+    end
+
+    local TweenService     = game:GetService("TweenService")
+    local UserInputService = game:GetService("UserInputService")
+    local W, H = 400, 248
+
+    local function tw(obj, t, props)
+        TweenService:Create(obj, TweenInfo.new(t, Enum.EasingStyle.Quad), props):Play()
+    end
+    local function corner(p, r)
+        Instance.new("UICorner", p).CornerRadius = UDim.new(0, r or 10)
+    end
+    local function stroke(p, col, thick, trans)
+        local s = Instance.new("UIStroke", p)
+        s.Color = col or Color3.fromRGB(255,255,255)
+        s.Thickness = thick or 1
+        s.Transparency = trans or 0
+        s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        return s
+    end
+
+    local Gui = Instance.new("ScreenGui")
+    Gui.Name = "EaGKeyGui"
+    Gui.ResetOnSpawn = false
+    Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    local Frame = Instance.new("Frame")
+    Frame.Size             = UDim2.new(0, W, 0, H)
+    Frame.Position         = UDim2.new(.5, -W/2, .5, -H/2)
+    Frame.BackgroundColor3 = Color3.fromRGB(13, 14, 21)
+    Frame.BorderSizePixel  = 0
+    Frame.ClipsDescendants = true
+    Frame.Parent           = Gui
+    corner(Frame, 14)
+    stroke(Frame, Color3.fromRGB(45, 55, 110), 1.5, 0.2)
+
+    -- Title
+    local TitleLbl = Instance.new("TextLabel")
+    TitleLbl.Size = UDim2.new(1,-70,0,24)
+    TitleLbl.Position = UDim2.new(0,18,0,16)
+    TitleLbl.BackgroundTransparency = 1
+    TitleLbl.Text = "Escape a Garden"
+    TitleLbl.TextColor3 = Color3.fromRGB(228, 233, 255)
+    TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLbl.Font = Enum.Font.GothamBlack
+    TitleLbl.TextSize = 17
+    TitleLbl.Parent = Frame
+
+    local Badge = Instance.new("TextLabel")
+    Badge.Size = UDim2.new(0,80,0,17)
+    Badge.Position = UDim2.new(0,18,0,42)
+    Badge.BackgroundColor3 = Color3.fromRGB(22, 30, 72)
+    Badge.Text = "KEY SYSTEM"
+    Badge.TextColor3 = Color3.fromRGB(100, 150, 255)
+    Badge.Font = Enum.Font.GothamBold
+    Badge.TextSize = 10
+    Badge.Parent = Frame
+    corner(Badge, 4)
+    stroke(Badge, Color3.fromRGB(50, 80, 180), 1, 0.5)
+
+    -- Close
+    local CloseBtn = Instance.new("TextButton")
+    CloseBtn.Size = UDim2.new(0,26,0,26)
+    CloseBtn.Position = UDim2.new(1,-38,0,14)
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(28, 30, 46)
+    CloseBtn.Text = "X"
+    CloseBtn.TextColor3 = Color3.fromRGB(130, 135, 170)
+    CloseBtn.Font = Enum.Font.GothamBold
+    CloseBtn.TextSize = 11
+    CloseBtn.BorderSizePixel = 0
+    CloseBtn.Parent = Frame
+    corner(CloseBtn, 6)
+    stroke(CloseBtn, Color3.fromRGB(45, 50, 80), 1, 0.2)
+    CloseBtn.MouseEnter:Connect(function()
+        tw(CloseBtn, .14, {BackgroundColor3 = Color3.fromRGB(170,40,40), TextColor3 = Color3.fromRGB(255,255,255)})
+    end)
+    CloseBtn.MouseLeave:Connect(function()
+        tw(CloseBtn, .14, {BackgroundColor3 = Color3.fromRGB(28,30,46), TextColor3 = Color3.fromRGB(130,135,170)})
+    end)
+
+    -- Divider
+    local Div = Instance.new("Frame")
+    Div.Size = UDim2.new(1,-36,0,1)
+    Div.Position = UDim2.new(0,18,0,68)
+    Div.BackgroundColor3 = Color3.fromRGB(30, 34, 58)
+    Div.BorderSizePixel = 0
+    Div.Parent = Frame
+
+    -- Input
+    local InputWrap = Instance.new("Frame")
+    InputWrap.Size = UDim2.new(1,-36,0,40)
+    InputWrap.Position = UDim2.new(0,18,0,78)
+    InputWrap.BackgroundColor3 = Color3.fromRGB(17, 19, 30)
+    InputWrap.BorderSizePixel = 0
+    InputWrap.Parent = Frame
+    corner(InputWrap, 9)
+    local iStroke = stroke(InputWrap, Color3.fromRGB(38, 43, 75), 1.2, 0)
+
+    local Input = Instance.new("TextBox")
+    Input.Size = UDim2.new(1,0,1,0)
+    Input.BackgroundTransparency = 1
+    Input.PlaceholderText = "Enter your key   XXXX-XXXX-XXXX-XXXX"
+    Input.Text = ""
+    Input.TextColor3 = Color3.fromRGB(210, 218, 255)
+    Input.PlaceholderColor3 = Color3.fromRGB(55, 60, 95)
+    Input.Font = Enum.Font.GothamMedium
+    Input.TextSize = 13
+    Input.TextXAlignment = Enum.TextXAlignment.Left
+    Input.ClearTextOnFocus = false
+    Input.Parent = InputWrap
+    local ip = Instance.new("UIPadding", Input)
+    ip.PaddingLeft = UDim.new(0,12); ip.PaddingRight = UDim.new(0,12)
+    Input.Focused:Connect(function()
+        tw(iStroke, .18, {Color = Color3.fromRGB(75, 105, 230)})
+    end)
+    Input.FocusLost:Connect(function()
+        tw(iStroke, .18, {Color = Color3.fromRGB(38, 43, 75)})
+    end)
+
+    -- Status
+    local StatusLbl = Instance.new("TextLabel")
+    StatusLbl.Size = UDim2.new(1,-36,0,16)
+    StatusLbl.Position = UDim2.new(0,18,0,122)
+    StatusLbl.BackgroundTransparency = 1
+    StatusLbl.Text = ""
+    StatusLbl.TextColor3 = Color3.fromRGB(80, 195, 115)
+    StatusLbl.TextXAlignment = Enum.TextXAlignment.Left
+    StatusLbl.Font = Enum.Font.Gotham
+    StatusLbl.TextSize = 11
+    StatusLbl.Parent = Frame
+
+    local function setStatus(msg, isErr)
+        StatusLbl.Text = msg
+        StatusLbl.TextColor3 = isErr
+            and Color3.fromRGB(215,65,65)
+            or  Color3.fromRGB(80,195,115)
+    end
+
+    -- Check Button
+    local CheckBtn = Instance.new("TextButton")
+    CheckBtn.Size = UDim2.new(1,-36,0,38)
+    CheckBtn.Position = UDim2.new(0,18,0,142)
+    CheckBtn.BackgroundColor3 = Color3.fromRGB(65, 105, 225)
+    CheckBtn.Text = "Check & Use Key"
+    CheckBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    CheckBtn.Font = Enum.Font.GothamBold
+    CheckBtn.TextSize = 13
+    CheckBtn.BorderSizePixel = 0
+    CheckBtn.Parent = Frame
+    corner(CheckBtn, 9)
+    CheckBtn.MouseEnter:Connect(function()   tw(CheckBtn,.14,{BackgroundColor3=Color3.fromRGB(90,125,255)}) end)
+    CheckBtn.MouseLeave:Connect(function()   tw(CheckBtn,.14,{BackgroundColor3=Color3.fromRGB(65,105,225)}) end)
+
+    -- Get Key Button
+    local GetKeyBtn = Instance.new("TextButton")
+    GetKeyBtn.Size = UDim2.new(1,-36,0,36)
+    GetKeyBtn.Position = UDim2.new(0,18,0,189)
+    GetKeyBtn.BackgroundColor3 = Color3.fromRGB(17, 19, 30)
+    GetKeyBtn.Text = "Get Key"
+    GetKeyBtn.TextColor3 = Color3.fromRGB(140, 155, 205)
+    GetKeyBtn.Font = Enum.Font.GothamBold
+    GetKeyBtn.TextSize = 13
+    GetKeyBtn.BorderSizePixel = 0
+    GetKeyBtn.Parent = Frame
+    corner(GetKeyBtn, 9)
+    stroke(GetKeyBtn, Color3.fromRGB(40, 46, 78), 1.2, 0)
+    GetKeyBtn.MouseEnter:Connect(function()
+        tw(GetKeyBtn,.14,{BackgroundColor3=Color3.fromRGB(22,26,42),TextColor3=Color3.fromRGB(175,190,255)})
+    end)
+    GetKeyBtn.MouseLeave:Connect(function()
+        tw(GetKeyBtn,.14,{BackgroundColor3=Color3.fromRGB(17,19,30),TextColor3=Color3.fromRGB(140,155,205)})
+    end)
+
+    -- Parent GUI
+    if not pcall(function() Gui.Parent = game:GetService("CoreGui") end) then
+        Gui.Parent = lp:WaitForChild("PlayerGui")
+    end
+
+    -- Fade in
+    Frame.BackgroundTransparency = 1
+    task.spawn(function() task.wait(0.02); tw(Frame, .25, {BackgroundTransparency = 0}) end)
+
+    -- Draggable
+    do
+        local dragging, dInput, dStart, sPos = false
+        Frame.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1
+            or i.UserInputType == Enum.UserInputType.Touch then
+                dragging = true; dStart = i.Position; sPos = Frame.Position
+                i.Changed:Connect(function()
+                    if i.UserInputState == Enum.UserInputState.End then dragging = false end
+                end)
+            end
+        end)
+        Frame.InputChanged:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseMovement
+            or i.UserInputType == Enum.UserInputType.Touch then dInput = i end
+        end)
+        UserInputService.InputChanged:Connect(function(i)
+            if i == dInput and dragging then
+                local d = i.Position - dStart
+                Frame.Position = UDim2.new(sPos.X.Scale, sPos.X.Offset+d.X, sPos.Y.Scale, sPos.Y.Offset+d.Y)
+            end
+        end)
+    end
+
+    -- Responsive
+    local function resize()
+        local vp = workspace.CurrentCamera.ViewportSize
+        local w = vp.X < 480 and math.min(370, vp.X-24) or W
+        Frame.Size = UDim2.new(0,w,0,H)
+        Frame.Position = UDim2.new(.5,-w/2,.5,-H/2)
+    end
+    resize()
+    workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(resize)
+
+    -- Button Logic
+    CloseBtn.MouseButton1Click:Connect(function()
+        tw(Frame, .18, {BackgroundTransparency = 1})
+        task.wait(.2); Gui:Destroy()
+    end)
+
+    GetKeyBtn.MouseButton1Click:Connect(function()
+        setclipboard(BASE_URL .. "/post/" .. POST_SLUG)
+        setStatus("Get key URL copied!")
+        notify("URL copied to clipboard!")
+    end)
+
+    local busy = false
+    local keyAccepted = Instance.new("BindableEvent")
+
+    CheckBtn.MouseButton1Click:Connect(function()
+        if busy then return end
+        local key = Input.Text:gsub("%s+", "")
+        if key == "" then setStatus("Please enter your key.", true) return end
+
+        busy = true
+        CheckBtn.Text = "Verifying..."
+        setStatus("Checking key...")
+
+        task.spawn(function()
+            local ok, data = checkKey(key)
+            if not ok then
+                setStatus(tostring(data), true)
+                notify(tostring(data))
+                busy = false; CheckBtn.Text = "Check & Use Key"
+                return
+            end
+            local exp = (data.expires_at and data.expires_at ~= "") and data.expires_at or "Never"
+            setStatus("Key valid!  Expires: " .. exp)
+            notify("Key valid! Loading...")
+            if not data.hwid_bound then bindHwid(key) end
+            writefile(KEY_FILE, key)
+            task.wait(.6)
+            tw(Frame, .18, {BackgroundTransparency = 1})
+            task.wait(.2)
+            Gui:Destroy()
+            keyAccepted:Fire(key)
+        end)
+    end)
+
+    -- รอ user ใส่คีย์ผ่าน
+    validKey = keyAccepted.Event:Wait()
+    keyAccepted:Destroy()
+end
+
+-- ============================================================
+--  Main Script (รันหลังผ่านคีย์แล้ว)
+-- ============================================================
+
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+local CONFIG_FILE = "Escape a Garden.json"
+local Config = {
+    UltraFast        = false,
+    AutoWarpSeedHead = false,
+    AutoEscapeForce  = false,
+    AIWalking        = false,
+    SelectedPath     = "1",
+}
+
+local function saveConfig()
+    pcall(function()
+        writefile(CONFIG_FILE, HttpService:JSONEncode(Config))
+    end)
+end
+
+if isfile(CONFIG_FILE) then
+    pcall(function()
+        local data = HttpService:JSONDecode(readfile(CONFIG_FILE))
+        for k, v in pairs(data) do Config[k] = v end
+    end)
+end
+
+local STORAGE_CF = CFrame.new(11.5, 175.5, -51)
+local PLOT11_CF  = CFrame.new(
+    1174.833862, 174.999985, -51.013908,
+    -0.061077, 0, -0.998133,
+    0, 1, 0,
+    0.998133, 0, -0.061077
+)
+local WALK_POINTS = {
+    Vector3.new(16.5, 175.5, -51),
+    Vector3.new(11.5, 175.5, -46),
+    Vector3.new( 6.5, 175.5, -51),
+    Vector3.new(11.5, 175.5, -56),
+}
+
+local RunService  = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
+local walkIdx     = 1
+
+lp.Idled:Connect(function()
+    VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+    task.wait(1)
+    VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+end)
+
+local function getCharacter()
+    local chars = workspace:FindFirstChild("World")
+        and workspace.World:FindFirstChild("Runtime")
+        and workspace.World.Runtime:FindFirstChild("Characters")
+    return (chars and chars:FindFirstChild(lp.Name)) or lp.Character
+end
+
+local function getProgressBar(pct)
+    local filled = math.clamp(math.floor(pct / 10), 0, 10)
+    local symbol = pct >= 80 and "█" or pct >= 50 and "▓" or "░"
+    return string.rep(symbol, filled) .. string.rep("░", 10 - filled)
+end
+
+local function parsePlantName(text)
+    if not text then return "?", "?" end
+    local name, rarity = tostring(text):match("^(.-)%s*%((.-)%)%s*$")
+    return name or tostring(text), rarity or "?"
+end
+
+local function parseProgressValue(text)
+    return tonumber(tostring(text or ""):match("(%d+%.?%d*)%%")) or 0
+end
+
+local function getPlantsInPlot(slot)
+    local plants = {}
+    for i = 1, 10 do
+        local plant = slot:FindFirstChild(tostring(i))
+        if not plant then break end
+        local gi = plant:FindFirstChild("Pivot") and plant.Pivot:FindFirstChild("GrowingInformatic")
+        if gi then table.insert(plants, { idx = i, gi = gi }) end
+    end
+    return plants
+end
+
+local Window = Rayfield:CreateWindow({
+    Name                = "[UPD] Escape a Garden",
+    LoadingTitle        = "Loading...",
+    LoadingSubtitle     = "Jxckyzz",
+    ConfigurationSaving = { Enabled = false },
+})
+
+local MainTab   = Window:CreateTab("Main",   4483362458)
+local StatusTab = Window:CreateTab("Status", 4483362458)
+
+StatusTab:CreateSection("Active Plots")
+
+local plotLabels = {}
+for i = 1, 11 do
+    plotLabels[i] = StatusTab:CreateLabel("Plot " .. i .. " · loading...")
+end
+
+task.spawn(function()
+    local PathPlots = workspace
+        :WaitForChild("World",     60)
+        :WaitForChild("Shared",    60)
+        :WaitForChild("PathPlots", 60)
+
+    if not PathPlots then
+        for i = 1, 11 do plotLabels[i]:Set("Plot " .. i .. " · ERROR") end
+        return
+    end
+
+    while true do
+        for i = 1, 11 do
+            pcall(function()
+                local slot   = PathPlots:FindFirstChild(tostring(i))
+                local plants = slot and getPlantsInPlot(slot) or {}
+                if #plants == 0 then
+                    plotLabels[i]:Set("Plot " .. i .. " · empty")
+                    return
+                end
+                local parts = {}
+                for _, p in ipairs(plants) do
+                    local name, rarity = parsePlantName(
+                        p.gi:FindFirstChild("PlantName") and p.gi.PlantName.Text)
+                    local prog = parseProgressValue(
+                        p.gi:FindFirstChild("GrowingProgress") and p.gi.GrowingProgress.Text)
+                    local mut = p.gi:FindFirstChild("Mutations") and p.gi.Mutations.Text or ""
+                    local mutStr = mut ~= "" and (" · " .. mut) or ""
+                    table.insert(parts, string.format(
+                        "[p%d] %s [%s] %s %d%%%s",
+                        p.idx, name, rarity, getProgressBar(prog), prog, mutStr
+                    ))
+                end
+                plotLabels[i]:Set("Plot " .. i .. " · " .. table.concat(parts, "  |  "))
+            end)
+        end
+        task.wait(0.5)
+    end
+end)
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            if Config.AutoWarpSeedHead then
+                local seed = workspace:FindFirstChild("SeedHead")
+                if seed then
+                    if Config.SelectedPath == "11" then
+                        seed:PivotTo(PLOT11_CF)
+                    else
+                        local pp   = workspace.World.Shared.PathPlots
+                        local slot = pp and pp:FindFirstChild(Config.SelectedPath)
+                        if slot then seed:PivotTo(slot:GetPivot() * CFrame.new(0, 2, 0)) end
+                    end
+                end
+            end
+            if Config.AutoEscapeForce then
+                local c = getCharacter()
+                if c then c:PivotTo(STORAGE_CF) end
+            end
+        end)
+        RunService.Heartbeat:Wait()
+    end
+end)
+
+task.spawn(function()
+    while true do
+        if Config.AIWalking then
+            pcall(function()
+                local c   = getCharacter()
+                local hrp = c and c:FindFirstChild("HumanoidRootPart")
+                local hum = c and c:FindFirstChild("Humanoid")
+                if hrp and hum and hum.Health > 0 then
+                    if (hrp.Position - WALK_POINTS[walkIdx]).Magnitude < 3 then
+                        walkIdx = walkIdx % #WALK_POINTS + 1
+                    end
+                    hum:MoveTo(WALK_POINTS[walkIdx])
+                end
+            end)
+            task.wait(0.1)
+        else
+            task.wait(0.5)
+        end
+    end
+end)
+
+task.spawn(function()
+    while true do
+        if Config.UltraFast then
+            pcall(function()
+                local btn = lp.PlayerGui:FindFirstChild("Screen")
+                    and lp.PlayerGui.Screen:FindFirstChild("SpeedUp")
+                if btn and btn:IsA("ImageButton") then
+                    for _, c in pairs(getconnections(btn.Activated))         do c:Fire() end
+                    for _, c in pairs(getconnections(btn.MouseButton1Click)) do c:Fire() end
+                end
+            end)
+        end
+        task.wait()
+    end
+end)
+
+MainTab:CreateSection("Plot Selection")
+MainTab:CreateDropdown({
+    Name          = "Target Plot (1-11)",
+    Options       = {"1","2","3","4","5","6","7","8","9","10","11"},
+    CurrentOption = { Config.SelectedPath },
+    Callback      = function(v)
+        Config.SelectedPath = type(v) == "table" and v[1] or v
+        saveConfig()
+    end,
+})
+
+MainTab:CreateSection("Movement")
+MainTab:CreateToggle({
+    Name         = "Auto Get Plant",
+    CurrentValue = Config.AutoWarpSeedHead,
+    Callback     = function(v) Config.AutoWarpSeedHead = v; saveConfig() end,
+})
+MainTab:CreateToggle({
+    Name         = "Auto Keep Plant",
+    CurrentValue = Config.AutoEscapeForce,
+    Callback     = function(v)
+        Config.AutoEscapeForce = v
+        if v then Config.AIWalking = false end
+        saveConfig()
+    end,
+})
+MainTab:CreateToggle({
+    Name         = "AI Patrol",
+    CurrentValue = Config.AIWalking,
+    Callback     = function(v)
+        Config.AIWalking = v
+        if v then Config.AutoEscapeForce = false end
+        saveConfig()
+    end,
+})
+
+MainTab:CreateSection("Booster")
+MainTab:CreateToggle({
+    Name         = "Auto Mini Game",
+    CurrentValue = Config.UltraFast,
+    Callback     = function(v) Config.UltraFast = v; saveConfig() end,
+})
+
+MainTab:CreateSection("Utility")
+MainTab:CreateButton({
+    Name     = "Rejoin Server",
+    Callback = function()
+        game:GetService("TeleportService"):Teleport(game.PlaceId, lp)
+    end,
+})
+MainTab:CreateButton({
+    Name     = "Hop Server",
+    Callback = function()
+        local TS      = game:GetService("TeleportService")
+        local placeId = game.PlaceId
+        local ok, servers = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet(string.format(
+                "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100",
+                placeId
+            ))).data
+        end)
+        if not ok or not servers then return end
+        local current = game.JobId
+        for _, s in ipairs(servers) do
+            if s.id ~= current and s.playing < s.maxPlayers then
+                TS:TeleportToPlaceInstance(placeId, s.id, lp)
+                return
+            end
+        end
+    end,
+})
