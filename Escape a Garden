@@ -1,5 +1,5 @@
 -- ============================================================
---  Escape a Garden — Full Script
+--  Escape a Garden — with xlinkx Key System
 -- ============================================================
 
 -- Key System (xlinkx)
@@ -40,13 +40,19 @@ local function bindHwid(key)
     local fn = request or (http and http.request) or (syn and syn.request)
     if not fn then return end
     pcall(fn, {
-        Url     = BASE_URL .. "/api/keys/set-hwid",
-        Method  = "POST",
+        Url    = BASE_URL .. "/api/keys/set-hwid",
+        Method = "POST",
         Headers = { ["Content-Type"] = "application/json" },
-        Body    = HttpService:JSONEncode({ post = POST_SLUG, api_key = API_KEY, key = key, hwid = HWID }),
+        Body   = HttpService:JSONEncode({
+            post    = POST_SLUG,
+            api_key = API_KEY,
+            key     = key,
+            hwid    = HWID,
+        }),
     })
 end
 
+-- เช็คคีย์ที่บันทึกไว้
 local verified = false
 local validKey = ""
 
@@ -63,9 +69,12 @@ if isfile(KEY_FILE) then
 end
 
 if not verified then
+    -- แสดง UI ขอคีย์
     local StarterGui = game:GetService("StarterGui")
     local function notify(text)
-        StarterGui:SetCore("SendNotification", { Title = "EaG Key System", Text = text, Duration = 8 })
+        StarterGui:SetCore("SendNotification", {
+            Title = "EaG Key System", Text = text, Duration = 8,
+        })
     end
 
     local TweenService     = game:GetService("TweenService")
@@ -75,7 +84,9 @@ if not verified then
     local function tw(obj, t, props)
         TweenService:Create(obj, TweenInfo.new(t, Enum.EasingStyle.Quad), props):Play()
     end
-    local function corner(p, r) Instance.new("UICorner", p).CornerRadius = UDim.new(0, r or 10) end
+    local function corner(p, r)
+        Instance.new("UICorner", p).CornerRadius = UDim.new(0, r or 10)
+    end
     local function stroke(p, col, thick, trans)
         local s = Instance.new("UIStroke", p)
         s.Color = col or Color3.fromRGB(255,255,255)
@@ -91,21 +102,22 @@ if not verified then
     Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
     local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0,W,0,H)
-    Frame.Position = UDim2.new(.5,-W/2,.5,-H/2)
-    Frame.BackgroundColor3 = Color3.fromRGB(13,14,21)
-    Frame.BorderSizePixel = 0
+    Frame.Size             = UDim2.new(0, W, 0, H)
+    Frame.Position         = UDim2.new(.5, -W/2, .5, -H/2)
+    Frame.BackgroundColor3 = Color3.fromRGB(13, 14, 21)
+    Frame.BorderSizePixel  = 0
     Frame.ClipsDescendants = true
-    Frame.Parent = Gui
+    Frame.Parent           = Gui
     corner(Frame, 14)
-    stroke(Frame, Color3.fromRGB(45,55,110), 1.5, 0.2)
+    stroke(Frame, Color3.fromRGB(45, 55, 110), 1.5, 0.2)
 
+    -- Title
     local TitleLbl = Instance.new("TextLabel")
     TitleLbl.Size = UDim2.new(1,-70,0,24)
     TitleLbl.Position = UDim2.new(0,18,0,16)
     TitleLbl.BackgroundTransparency = 1
     TitleLbl.Text = "Escape a Garden"
-    TitleLbl.TextColor3 = Color3.fromRGB(228,233,255)
+    TitleLbl.TextColor3 = Color3.fromRGB(228, 233, 255)
     TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
     TitleLbl.Font = Enum.Font.GothamBlack
     TitleLbl.TextSize = 17
@@ -114,53 +126,60 @@ if not verified then
     local Badge = Instance.new("TextLabel")
     Badge.Size = UDim2.new(0,80,0,17)
     Badge.Position = UDim2.new(0,18,0,42)
-    Badge.BackgroundColor3 = Color3.fromRGB(22,30,72)
+    Badge.BackgroundColor3 = Color3.fromRGB(22, 30, 72)
     Badge.Text = "KEY SYSTEM"
-    Badge.TextColor3 = Color3.fromRGB(100,150,255)
+    Badge.TextColor3 = Color3.fromRGB(100, 150, 255)
     Badge.Font = Enum.Font.GothamBold
     Badge.TextSize = 10
     Badge.Parent = Frame
     corner(Badge, 4)
-    stroke(Badge, Color3.fromRGB(50,80,180), 1, 0.5)
+    stroke(Badge, Color3.fromRGB(50, 80, 180), 1, 0.5)
 
+    -- Close
     local CloseBtn = Instance.new("TextButton")
     CloseBtn.Size = UDim2.new(0,26,0,26)
     CloseBtn.Position = UDim2.new(1,-38,0,14)
-    CloseBtn.BackgroundColor3 = Color3.fromRGB(28,30,46)
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(28, 30, 46)
     CloseBtn.Text = "X"
-    CloseBtn.TextColor3 = Color3.fromRGB(130,135,170)
+    CloseBtn.TextColor3 = Color3.fromRGB(130, 135, 170)
     CloseBtn.Font = Enum.Font.GothamBold
     CloseBtn.TextSize = 11
     CloseBtn.BorderSizePixel = 0
     CloseBtn.Parent = Frame
     corner(CloseBtn, 6)
-    stroke(CloseBtn, Color3.fromRGB(45,50,80), 1, 0.2)
-    CloseBtn.MouseEnter:Connect(function() tw(CloseBtn,.14,{BackgroundColor3=Color3.fromRGB(170,40,40),TextColor3=Color3.fromRGB(255,255,255)}) end)
-    CloseBtn.MouseLeave:Connect(function() tw(CloseBtn,.14,{BackgroundColor3=Color3.fromRGB(28,30,46),TextColor3=Color3.fromRGB(130,135,170)}) end)
+    stroke(CloseBtn, Color3.fromRGB(45, 50, 80), 1, 0.2)
+    CloseBtn.MouseEnter:Connect(function()
+        tw(CloseBtn, .14, {BackgroundColor3 = Color3.fromRGB(170,40,40), TextColor3 = Color3.fromRGB(255,255,255)})
+    end)
+    CloseBtn.MouseLeave:Connect(function()
+        tw(CloseBtn, .14, {BackgroundColor3 = Color3.fromRGB(28,30,46), TextColor3 = Color3.fromRGB(130,135,170)})
+    end)
 
+    -- Divider
     local Div = Instance.new("Frame")
     Div.Size = UDim2.new(1,-36,0,1)
     Div.Position = UDim2.new(0,18,0,68)
-    Div.BackgroundColor3 = Color3.fromRGB(30,34,58)
+    Div.BackgroundColor3 = Color3.fromRGB(30, 34, 58)
     Div.BorderSizePixel = 0
     Div.Parent = Frame
 
+    -- Input
     local InputWrap = Instance.new("Frame")
     InputWrap.Size = UDim2.new(1,-36,0,40)
     InputWrap.Position = UDim2.new(0,18,0,78)
-    InputWrap.BackgroundColor3 = Color3.fromRGB(17,19,30)
+    InputWrap.BackgroundColor3 = Color3.fromRGB(17, 19, 30)
     InputWrap.BorderSizePixel = 0
     InputWrap.Parent = Frame
     corner(InputWrap, 9)
-    local iStroke = stroke(InputWrap, Color3.fromRGB(38,43,75), 1.2, 0)
+    local iStroke = stroke(InputWrap, Color3.fromRGB(38, 43, 75), 1.2, 0)
 
     local Input = Instance.new("TextBox")
     Input.Size = UDim2.new(1,0,1,0)
     Input.BackgroundTransparency = 1
     Input.PlaceholderText = "Enter your key   XXXX-XXXX-XXXX-XXXX"
     Input.Text = ""
-    Input.TextColor3 = Color3.fromRGB(210,218,255)
-    Input.PlaceholderColor3 = Color3.fromRGB(55,60,95)
+    Input.TextColor3 = Color3.fromRGB(210, 218, 255)
+    Input.PlaceholderColor3 = Color3.fromRGB(55, 60, 95)
     Input.Font = Enum.Font.GothamMedium
     Input.TextSize = 13
     Input.TextXAlignment = Enum.TextXAlignment.Left
@@ -168,15 +187,20 @@ if not verified then
     Input.Parent = InputWrap
     local ip = Instance.new("UIPadding", Input)
     ip.PaddingLeft = UDim.new(0,12); ip.PaddingRight = UDim.new(0,12)
-    Input.Focused:Connect(function() tw(iStroke,.18,{Color=Color3.fromRGB(75,105,230)}) end)
-    Input.FocusLost:Connect(function() tw(iStroke,.18,{Color=Color3.fromRGB(38,43,75)}) end)
+    Input.Focused:Connect(function()
+        tw(iStroke, .18, {Color = Color3.fromRGB(75, 105, 230)})
+    end)
+    Input.FocusLost:Connect(function()
+        tw(iStroke, .18, {Color = Color3.fromRGB(38, 43, 75)})
+    end)
 
+    -- Status
     local StatusLbl = Instance.new("TextLabel")
     StatusLbl.Size = UDim2.new(1,-36,0,16)
     StatusLbl.Position = UDim2.new(0,18,0,122)
     StatusLbl.BackgroundTransparency = 1
     StatusLbl.Text = ""
-    StatusLbl.TextColor3 = Color3.fromRGB(80,195,115)
+    StatusLbl.TextColor3 = Color3.fromRGB(80, 195, 115)
     StatusLbl.TextXAlignment = Enum.TextXAlignment.Left
     StatusLbl.Font = Enum.Font.Gotham
     StatusLbl.TextSize = 11
@@ -184,13 +208,16 @@ if not verified then
 
     local function setStatus(msg, isErr)
         StatusLbl.Text = msg
-        StatusLbl.TextColor3 = isErr and Color3.fromRGB(215,65,65) or Color3.fromRGB(80,195,115)
+        StatusLbl.TextColor3 = isErr
+            and Color3.fromRGB(215,65,65)
+            or  Color3.fromRGB(80,195,115)
     end
 
+    -- Check Button
     local CheckBtn = Instance.new("TextButton")
     CheckBtn.Size = UDim2.new(1,-36,0,38)
     CheckBtn.Position = UDim2.new(0,18,0,142)
-    CheckBtn.BackgroundColor3 = Color3.fromRGB(65,105,225)
+    CheckBtn.BackgroundColor3 = Color3.fromRGB(65, 105, 225)
     CheckBtn.Text = "Check & Use Key"
     CheckBtn.TextColor3 = Color3.fromRGB(255,255,255)
     CheckBtn.Font = Enum.Font.GothamBold
@@ -198,41 +225,53 @@ if not verified then
     CheckBtn.BorderSizePixel = 0
     CheckBtn.Parent = Frame
     corner(CheckBtn, 9)
-    CheckBtn.MouseEnter:Connect(function() tw(CheckBtn,.14,{BackgroundColor3=Color3.fromRGB(90,125,255)}) end)
-    CheckBtn.MouseLeave:Connect(function() tw(CheckBtn,.14,{BackgroundColor3=Color3.fromRGB(65,105,225)}) end)
+    CheckBtn.MouseEnter:Connect(function()   tw(CheckBtn,.14,{BackgroundColor3=Color3.fromRGB(90,125,255)}) end)
+    CheckBtn.MouseLeave:Connect(function()   tw(CheckBtn,.14,{BackgroundColor3=Color3.fromRGB(65,105,225)}) end)
 
+    -- Get Key Button
     local GetKeyBtn = Instance.new("TextButton")
     GetKeyBtn.Size = UDim2.new(1,-36,0,36)
     GetKeyBtn.Position = UDim2.new(0,18,0,189)
-    GetKeyBtn.BackgroundColor3 = Color3.fromRGB(17,19,30)
+    GetKeyBtn.BackgroundColor3 = Color3.fromRGB(17, 19, 30)
     GetKeyBtn.Text = "Get Key"
-    GetKeyBtn.TextColor3 = Color3.fromRGB(140,155,205)
+    GetKeyBtn.TextColor3 = Color3.fromRGB(140, 155, 205)
     GetKeyBtn.Font = Enum.Font.GothamBold
     GetKeyBtn.TextSize = 13
     GetKeyBtn.BorderSizePixel = 0
     GetKeyBtn.Parent = Frame
     corner(GetKeyBtn, 9)
-    stroke(GetKeyBtn, Color3.fromRGB(40,46,78), 1.2, 0)
-    GetKeyBtn.MouseEnter:Connect(function() tw(GetKeyBtn,.14,{BackgroundColor3=Color3.fromRGB(22,26,42),TextColor3=Color3.fromRGB(175,190,255)}) end)
-    GetKeyBtn.MouseLeave:Connect(function() tw(GetKeyBtn,.14,{BackgroundColor3=Color3.fromRGB(17,19,30),TextColor3=Color3.fromRGB(140,155,205)}) end)
+    stroke(GetKeyBtn, Color3.fromRGB(40, 46, 78), 1.2, 0)
+    GetKeyBtn.MouseEnter:Connect(function()
+        tw(GetKeyBtn,.14,{BackgroundColor3=Color3.fromRGB(22,26,42),TextColor3=Color3.fromRGB(175,190,255)})
+    end)
+    GetKeyBtn.MouseLeave:Connect(function()
+        tw(GetKeyBtn,.14,{BackgroundColor3=Color3.fromRGB(17,19,30),TextColor3=Color3.fromRGB(140,155,205)})
+    end)
 
+    -- Parent GUI
     if not pcall(function() Gui.Parent = game:GetService("CoreGui") end) then
         Gui.Parent = lp:WaitForChild("PlayerGui")
     end
 
+    -- Fade in
     Frame.BackgroundTransparency = 1
-    task.spawn(function() task.wait(0.02); tw(Frame,.25,{BackgroundTransparency=0}) end)
+    task.spawn(function() task.wait(0.02); tw(Frame, .25, {BackgroundTransparency = 0}) end)
 
+    -- Draggable
     do
         local dragging, dInput, dStart, sPos = false
         Frame.InputBegan:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            if i.UserInputType == Enum.UserInputType.MouseButton1
+            or i.UserInputType == Enum.UserInputType.Touch then
                 dragging = true; dStart = i.Position; sPos = Frame.Position
-                i.Changed:Connect(function() if i.UserInputState == Enum.UserInputState.End then dragging = false end end)
+                i.Changed:Connect(function()
+                    if i.UserInputState == Enum.UserInputState.End then dragging = false end
+                end)
             end
         end)
         Frame.InputChanged:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then dInput = i end
+            if i.UserInputType == Enum.UserInputType.MouseMovement
+            or i.UserInputType == Enum.UserInputType.Touch then dInput = i end
         end)
         UserInputService.InputChanged:Connect(function(i)
             if i == dInput and dragging then
@@ -242,6 +281,7 @@ if not verified then
         end)
     end
 
+    -- Responsive
     local function resize()
         local vp = workspace.CurrentCamera.ViewportSize
         local w = vp.X < 480 and math.min(370, vp.X-24) or W
@@ -251,11 +291,14 @@ if not verified then
     resize()
     workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(resize)
 
+    -- Button Logic
     CloseBtn.MouseButton1Click:Connect(function()
-        tw(Frame,.18,{BackgroundTransparency=1}); task.wait(.2); Gui:Destroy()
+        tw(Frame, .18, {BackgroundTransparency = 1})
+        task.wait(.2); Gui:Destroy()
     end)
+
     GetKeyBtn.MouseButton1Click:Connect(function()
-        setclipboard(BASE_URL.."/post/"..POST_SLUG)
+        setclipboard(BASE_URL .. "/post/" .. POST_SLUG)
         setStatus("Get key URL copied!")
         notify("URL copied to clipboard!")
     end)
@@ -265,53 +308,52 @@ if not verified then
 
     CheckBtn.MouseButton1Click:Connect(function()
         if busy then return end
-        local key = Input.Text:gsub("%s+","")
+        local key = Input.Text:gsub("%s+", "")
         if key == "" then setStatus("Please enter your key.", true) return end
-        busy = true; CheckBtn.Text = "Verifying..."; setStatus("Checking key...")
+
+        busy = true
+        CheckBtn.Text = "Verifying..."
+        setStatus("Checking key...")
+
         task.spawn(function()
             local ok, data = checkKey(key)
             if not ok then
-                setStatus(tostring(data), true); notify(tostring(data))
-                busy = false; CheckBtn.Text = "Check & Use Key"; return
+                setStatus(tostring(data), true)
+                notify(tostring(data))
+                busy = false; CheckBtn.Text = "Check & Use Key"
+                return
             end
             local exp = (data.expires_at and data.expires_at ~= "") and data.expires_at or "Never"
-            setStatus("Key valid!  Expires: "..exp); notify("Key valid! Loading...")
+            setStatus("Key valid!  Expires: " .. exp)
+            notify("Key valid! Loading...")
             if not data.hwid_bound then bindHwid(key) end
             writefile(KEY_FILE, key)
             task.wait(.6)
-            tw(Frame,.18,{BackgroundTransparency=1}); task.wait(.2); Gui:Destroy()
+            tw(Frame, .18, {BackgroundTransparency = 1})
+            task.wait(.2)
+            Gui:Destroy()
             keyAccepted:Fire(key)
         end)
     end)
 
+    -- รอ user ใส่คีย์ผ่าน
     validKey = keyAccepted.Event:Wait()
     keyAccepted:Destroy()
 end
 
 -- ============================================================
---  Main Script
+--  Main Script (รันหลังผ่านคีย์แล้ว)
 -- ============================================================
 
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local CONFIG_FILE = "Escape a Garden.json"
 local Config = {
-    -- Auto Farm
+    UltraFast        = false,
     AutoWarpSeedHead = false,
     AutoEscapeForce  = false,
     AIWalking        = false,
-    UltraFast        = false,
     SelectedPath     = "1",
-    -- Auto Buy Seed
-    AutoBuySeed      = false,
-    SelectedSeed     = "Freezy Seed",
-    -- Auto Collect
-    AutoCollectCash  = false,
-    CollectInterval  = 10,
-    AutoClaimRewards = false,
-    -- Rebirth
-    AutoBuySpeed     = false,
-    AutoRebirth      = false,
 }
 
 local function saveConfig()
@@ -327,7 +369,6 @@ if isfile(CONFIG_FILE) then
     end)
 end
 
--- Constants
 local STORAGE_CF = CFrame.new(11.5, 175.5, -51)
 local PLOT11_CF  = CFrame.new(
     1174.833862, 174.999985, -51.013908,
@@ -342,29 +383,16 @@ local WALK_POINTS = {
     Vector3.new(11.5, 175.5, -56),
 }
 
-local SEED_LIST = {
-    "Basic Seed", "Cool Seed", "Freezy Seed", "Lava Seed",
-    "Cyborg Seed", "Glitched Seed", "Inferno Seed",
-    "Void Seed", "Rainbow Seed", "Shadow Seed", "Cone Seed",
-}
-
-local REMOTE = game:GetService("ReplicatedStorage")
-    :WaitForChild("ffrostflame_bridgenet2@1.0.0")
-    :WaitForChild("dataRemoteEvent")
-
 local RunService  = game:GetService("RunService")
 local VirtualUser = game:GetService("VirtualUser")
 local walkIdx     = 1
-local totalCashCollected = 0
 
--- Anti AFK
 lp.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
     task.wait(1)
-    VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
 end)
 
--- Helpers
 local function getCharacter()
     local chars = workspace:FindFirstChild("World")
         and workspace.World:FindFirstChild("Runtime")
@@ -373,9 +401,9 @@ local function getCharacter()
 end
 
 local function getProgressBar(pct)
-    local filled = math.clamp(math.floor(pct/10), 0, 10)
+    local filled = math.clamp(math.floor(pct / 10), 0, 10)
     local symbol = pct >= 80 and "█" or pct >= 50 and "▓" or "░"
-    return string.rep(symbol, filled) .. string.rep("░", 10-filled)
+    return string.rep(symbol, filled) .. string.rep("░", 10 - filled)
 end
 
 local function parsePlantName(text)
@@ -399,16 +427,6 @@ local function getPlantsInPlot(slot)
     return plants
 end
 
-local function fireRemote(func, args, tag)
-    pcall(function()
-        REMOTE:FireServer({ { Function = func, Args = args }, tag })
-    end)
-end
-
--- ============================================================
---  UI
--- ============================================================
-
 local Window = Rayfield:CreateWindow({
     Name                = "[UPD] Escape a Garden",
     LoadingTitle        = "Loading...",
@@ -416,196 +434,8 @@ local Window = Rayfield:CreateWindow({
     ConfigurationSaving = { Enabled = false },
 })
 
-local FarmTab   = Window:CreateTab("Auto Farm", 4483362458)
-local MiscTab   = Window:CreateTab("Misc",      4483362458)
-local StatusTab = Window:CreateTab("Status",    4483362458)
-
--- ============================================================
---  TAB 1 — AUTO FARM
--- ============================================================
-
-FarmTab:CreateSection("Auto Farm")
-
-FarmTab:CreateDropdown({
-    Name          = "Target Plot (1-11)",
-    Options       = {"1","2","3","4","5","6","7","8","9","10","11"},
-    CurrentOption = { Config.SelectedPath },
-    Callback      = function(v)
-        Config.SelectedPath = type(v) == "table" and v[1] or v
-        saveConfig()
-    end,
-})
-FarmTab:CreateToggle({
-    Name         = "Auto Get Plant",
-    CurrentValue = Config.AutoWarpSeedHead,
-    Callback     = function(v) Config.AutoWarpSeedHead = v; saveConfig() end,
-})
-FarmTab:CreateToggle({
-    Name         = "Auto Keep Plant",
-    CurrentValue = Config.AutoEscapeForce,
-    Callback     = function(v)
-        Config.AutoEscapeForce = v
-        if v then Config.AIWalking = false end
-        saveConfig()
-    end,
-})
-FarmTab:CreateToggle({
-    Name         = "AI Patrol",
-    CurrentValue = Config.AIWalking,
-    Callback     = function(v)
-        Config.AIWalking = v
-        if v then Config.AutoEscapeForce = false end
-        saveConfig()
-    end,
-})
-FarmTab:CreateToggle({
-    Name         = "Auto Mini Game",
-    CurrentValue = Config.UltraFast,
-    Callback     = function(v) Config.UltraFast = v; saveConfig() end,
-})
-
--- Auto Buy Seeds
-FarmTab:CreateSection("Auto Buy Seeds")
-
-FarmTab:CreateDropdown({
-    Name          = "Seed Type",
-    Options       = SEED_LIST,
-    CurrentOption = { Config.SelectedSeed },
-    Callback      = function(v)
-        Config.SelectedSeed = type(v) == "table" and v[1] or v
-        saveConfig()
-    end,
-})
-FarmTab:CreateToggle({
-    Name         = "Auto Buy Seed",
-    CurrentValue = Config.AutoBuySeed,
-    Callback     = function(v) Config.AutoBuySeed = v; saveConfig() end,
-})
-FarmTab:CreateButton({
-    Name     = "Buy Seed Now (Manual)",
-    Callback = function()
-        fireRemote("PurchaseWithCash", { Config.SelectedSeed }, "\130")
-    end,
-})
-
--- Auto Collect Money
-FarmTab:CreateSection("Auto Collect Money")
-
-FarmTab:CreateToggle({
-    Name         = "Auto Claim Free Rewards",
-    CurrentValue = Config.AutoClaimRewards,
-    Callback     = function(v) Config.AutoClaimRewards = v; saveConfig() end,
-})
-FarmTab:CreateToggle({
-    Name         = "Auto Collect Cash",
-    CurrentValue = Config.AutoCollectCash,
-    Callback     = function(v) Config.AutoCollectCash = v; saveConfig() end,
-})
-FarmTab:CreateSlider({
-    Name    = "Collect Interval (seconds)",
-    Range   = {3, 60},
-    Increment = 1,
-    CurrentValue = Config.CollectInterval,
-    Callback = function(v) Config.CollectInterval = v; saveConfig() end,
-})
-
-local cashLabel = FarmTab:CreateLabel("Cash Collected This Session: $0")
-
--- Rebirth
-FarmTab:CreateSection("Rebirth")
-
-local cashStatLabel  = FarmTab:CreateLabel("Cash: loading...")
-local speedStatLabel = FarmTab:CreateLabel("Speed: loading...")
-local rebirthLabel   = FarmTab:CreateLabel("Next Rebirth: loading...")
-local rebirthWarning = FarmTab:CreateLabel("Requirement: loading...")
-
-FarmTab:CreateToggle({
-    Name         = "Auto Buy Speed",
-    CurrentValue = Config.AutoBuySpeed,
-    Callback     = function(v) Config.AutoBuySpeed = v; saveConfig() end,
-})
-FarmTab:CreateToggle({
-    Name         = "Auto Rebirth",
-    CurrentValue = Config.AutoRebirth,
-    Callback     = function(v) Config.AutoRebirth = v; saveConfig() end,
-})
-
--- ============================================================
---  TAB 2 — MISC
--- ============================================================
-
-MiscTab:CreateSection("Character")
-
-MiscTab:CreateSlider({
-    Name         = "Walk Speed",
-    Range        = {16, 500},
-    Increment    = 1,
-    CurrentValue = 16,
-    Callback     = function(v)
-        local c = getCharacter()
-        local hum = c and c:FindFirstChild("Humanoid")
-        if hum then hum.WalkSpeed = v end
-    end,
-})
-MiscTab:CreateSlider({
-    Name         = "Jump Power",
-    Range        = {50, 500},
-    Increment    = 1,
-    CurrentValue = 50,
-    Callback     = function(v)
-        local c = getCharacter()
-        local hum = c and c:FindFirstChild("Humanoid")
-        if hum then hum.JumpPower = v end
-    end,
-})
-MiscTab:CreateToggle({
-    Name         = "Noclip",
-    CurrentValue = false,
-    Callback     = function(v)
-        RunService:BindToRenderStep("Noclip", 0, function()
-            if not v then RunService:UnbindFromRenderStep("Noclip") return end
-            local c = getCharacter()
-            if c then
-                for _, p in pairs(c:GetDescendants()) do
-                    if p:IsA("BasePart") then p.CanCollide = false end
-                end
-            end
-        end)
-    end,
-})
-
-MiscTab:CreateSection("Utility")
-
-MiscTab:CreateButton({
-    Name     = "Rejoin Server",
-    Callback = function()
-        game:GetService("TeleportService"):Teleport(game.PlaceId, lp)
-    end,
-})
-MiscTab:CreateButton({
-    Name     = "Hop Server",
-    Callback = function()
-        local TS = game:GetService("TeleportService")
-        local ok, servers = pcall(function()
-            return HttpService:JSONDecode(game:HttpGet(string.format(
-                "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100",
-                game.PlaceId
-            ))).data
-        end)
-        if not ok or not servers then return end
-        local current = game.JobId
-        for _, s in ipairs(servers) do
-            if s.id ~= current and s.playing < s.maxPlayers then
-                TS:TeleportToPlaceInstance(game.PlaceId, s.id, lp)
-                return
-            end
-        end
-    end,
-})
-
--- ============================================================
---  TAB 3 — STATUS
--- ============================================================
+local MainTab   = Window:CreateTab("Main",   4483362458)
+local StatusTab = Window:CreateTab("Status", 4483362458)
 
 StatusTab:CreateSection("Active Plots")
 
@@ -614,11 +444,6 @@ for i = 1, 11 do
     plotLabels[i] = StatusTab:CreateLabel("Plot " .. i .. " · loading...")
 end
 
--- ============================================================
---  LOOPS
--- ============================================================
-
--- Plot Monitor
 task.spawn(function()
     local PathPlots = workspace
         :WaitForChild("World",     60)
@@ -626,7 +451,7 @@ task.spawn(function()
         :WaitForChild("PathPlots", 60)
 
     if not PathPlots then
-        for i = 1, 11 do plotLabels[i]:Set("Plot "..i.." · ERROR") end
+        for i = 1, 11 do plotLabels[i]:Set("Plot " .. i .. " · ERROR") end
         return
     end
 
@@ -636,7 +461,8 @@ task.spawn(function()
                 local slot   = PathPlots:FindFirstChild(tostring(i))
                 local plants = slot and getPlantsInPlot(slot) or {}
                 if #plants == 0 then
-                    plotLabels[i]:Set("Plot "..i.." · empty"); return
+                    plotLabels[i]:Set("Plot " .. i .. " · empty")
+                    return
                 end
                 local parts = {}
                 for _, p in ipairs(plants) do
@@ -645,20 +471,19 @@ task.spawn(function()
                     local prog = parseProgressValue(
                         p.gi:FindFirstChild("GrowingProgress") and p.gi.GrowingProgress.Text)
                     local mut = p.gi:FindFirstChild("Mutations") and p.gi.Mutations.Text or ""
-                    local mutStr = mut ~= "" and (" · "..mut) or ""
+                    local mutStr = mut ~= "" and (" · " .. mut) or ""
                     table.insert(parts, string.format(
                         "[p%d] %s [%s] %s %d%%%s",
                         p.idx, name, rarity, getProgressBar(prog), prog, mutStr
                     ))
                 end
-                plotLabels[i]:Set("Plot "..i.." · "..table.concat(parts, "  |  "))
+                plotLabels[i]:Set("Plot " .. i .. " · " .. table.concat(parts, "  |  "))
             end)
         end
         task.wait(0.5)
     end
 end)
 
--- SeedHead / Escape loop
 task.spawn(function()
     while true do
         pcall(function()
@@ -670,7 +495,7 @@ task.spawn(function()
                     else
                         local pp   = workspace.World.Shared.PathPlots
                         local slot = pp and pp:FindFirstChild(Config.SelectedPath)
-                        if slot then seed:PivotTo(slot:GetPivot() * CFrame.new(0,2,0)) end
+                        if slot then seed:PivotTo(slot:GetPivot() * CFrame.new(0, 2, 0)) end
                     end
                 end
             end
@@ -683,7 +508,6 @@ task.spawn(function()
     end
 end)
 
--- AI Walk loop
 task.spawn(function()
     while true do
         if Config.AIWalking then
@@ -705,7 +529,6 @@ task.spawn(function()
     end
 end)
 
--- Ultra Fast loop
 task.spawn(function()
     while true do
         if Config.UltraFast then
@@ -722,126 +545,74 @@ task.spawn(function()
     end
 end)
 
--- Auto Buy Seed loop
-task.spawn(function()
-    while true do
-        if Config.AutoBuySeed then
-            pcall(function()
-                fireRemote("PurchaseWithCash", { Config.SelectedSeed }, "\130")
-            end)
-            task.wait(1)
-        else
-            task.wait(0.5)
-        end
-    end
-end)
+MainTab:CreateSection("Plot Selection")
+MainTab:CreateDropdown({
+    Name          = "Target Plot (1-11)",
+    Options       = {"1","2","3","4","5","6","7","8","9","10","11"},
+    CurrentOption = { Config.SelectedPath },
+    Callback      = function(v)
+        Config.SelectedPath = type(v) == "table" and v[1] or v
+        saveConfig()
+    end,
+})
 
--- Auto Claim Rewards loop
-task.spawn(function()
-    while true do
-        if Config.AutoClaimRewards then
-            pcall(function()
-                for i = 1, 12 do
-                    fireRemote("ClaimReward", { i }, "\132")
-                    task.wait(0.2)
-                end
-            end)
-            task.wait(30)
-        else
-            task.wait(1)
-        end
-    end
-end)
+MainTab:CreateSection("Movement")
+MainTab:CreateToggle({
+    Name         = "Auto Get Plant",
+    CurrentValue = Config.AutoWarpSeedHead,
+    Callback     = function(v) Config.AutoWarpSeedHead = v; saveConfig() end,
+})
+MainTab:CreateToggle({
+    Name         = "Auto Keep Plant",
+    CurrentValue = Config.AutoEscapeForce,
+    Callback     = function(v)
+        Config.AutoEscapeForce = v
+        if v then Config.AIWalking = false end
+        saveConfig()
+    end,
+})
+MainTab:CreateToggle({
+    Name         = "AI Patrol",
+    CurrentValue = Config.AIWalking,
+    Callback     = function(v)
+        Config.AIWalking = v
+        if v then Config.AutoEscapeForce = false end
+        saveConfig()
+    end,
+})
 
--- Auto Collect Cash loop
-task.spawn(function()
-    local lastCollect = 0
-    while true do
-        if Config.AutoCollectCash and tick() - lastCollect >= Config.CollectInterval then
-            pcall(function()
-                local Plots = workspace.World.Shared.Plots
-                local myDisplay = "@" .. lp.DisplayName
+MainTab:CreateSection("Booster")
+MainTab:CreateToggle({
+    Name         = "Auto Mini Game",
+    CurrentValue = Config.UltraFast,
+    Callback     = function(v) Config.UltraFast = v; saveConfig() end,
+})
 
-                for _, plotFolder in pairs(Plots:GetChildren()) do
-                    -- เช็ค owner
-                    local ownerLabel = plotFolder:FindFirstPath("Game.Owner.BillboardUI.Label")
-                    if ownerLabel and ownerLabel.Text == myDisplay then
-                        -- อ่านค่าเงิน
-                        local cashLabel2 = plotFolder:FindFirstPath("Game.Cash.CashStand.Main.BillboardGui.Cash")
-                        local cashAmt = cashLabel2 and tonumber(cashLabel2.Text:gsub("[^%d]","")) or 0
-
-                        -- วาร์ปไปเก็บ
-                        local claimZone = plotFolder:FindFirstPath("Game.Cash.ClaimZone")
-                        if claimZone then
-                            local c = getCharacter()
-                            if c then
-                                c:PivotTo(claimZone:GetPivot())
-                                task.wait(0.3)
-                                totalCashCollected = totalCashCollected + cashAmt
-                                cashLabel:Set("Cash Collected This Session: $" .. tostring(totalCashCollected))
-                            end
-                        end
-                    end
-                end
-            end)
-            lastCollect = tick()
-        end
-        task.wait(0.5)
-    end
-end)
-
--- Rebirth stat labels + Auto Buy Speed + Auto Rebirth
-task.spawn(function()
-    while true do
-        pcall(function()
-            -- อัพเดต labels
-            local leaderstats = lp:FindFirstChild("leaderstats")
-            if leaderstats then
-                local cash  = leaderstats:FindFirstChild("Cash")
-                local speed = leaderstats:FindFirstChild("Speed")
-                if cash  then cashStatLabel:Set("Cash: $"  .. tostring(cash.Value))  end
-                if speed then speedStatLabel:Set("Speed: " .. tostring(speed.Value)) end
-            end
-
-            local rebirthFrame = lp.PlayerGui:FindFirstPath("Screen.Frames.Rebirth")
-            if rebirthFrame then
-                local nextRebirth = rebirthFrame:FindFirstChild("NextRebirth")
-                local title       = rebirthFrame:FindFirstChild("Title")
-                local cashBar     = rebirthFrame:FindFirstChild("CashBar")
-                local amountLbl   = cashBar and cashBar:FindFirstChild("Amount")
-
-                if nextRebirth then rebirthLabel:Set("Next Rebirth: "   .. tostring(nextRebirth.Text)) end
-                if title       then rebirthWarning:Set("Requirement: " .. tostring(title.Text))       end
-
-                -- เช็คว่าพอรีเบิดไหม เช่น "25K/250K"
-                if Config.AutoRebirth and amountLbl then
-                    local txt = tostring(amountLbl.Text)
-                    local function parseK(s)
-                        local n, suffix = s:match("(%d+%.?%d*)([KMBkmb]?)")
-                        n = tonumber(n) or 0
-                        suffix = suffix:upper()
-                        if suffix == "K" then return n * 1e3
-                        elseif suffix == "M" then return n * 1e6
-                        elseif suffix == "B" then return n * 1e9
-                        end
-                        return n
-                    end
-                    local have, need = txt:match("^(.-)%s*/%s*(.-)$")
-                    if have and need then
-                        local haveN = parseK(have)
-                        local needN = parseK(need)
-                        if haveN >= needN then
-                            fireRemote("RequestRebirth", {}, "\134")
-                        end
-                    end
-                end
-            end
-
-            -- Auto Buy Speed
-            if Config.AutoBuySpeed then
-                fireRemote("BuyUpgrade", { "Speed" }, "\131")
-            end
+MainTab:CreateSection("Utility")
+MainTab:CreateButton({
+    Name     = "Rejoin Server",
+    Callback = function()
+        game:GetService("TeleportService"):Teleport(game.PlaceId, lp)
+    end,
+})
+MainTab:CreateButton({
+    Name     = "Hop Server",
+    Callback = function()
+        local TS      = game:GetService("TeleportService")
+        local placeId = game.PlaceId
+        local ok, servers = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet(string.format(
+                "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100",
+                placeId
+            ))).data
         end)
-        task.wait(0.5)
-    end
-end)
+        if not ok or not servers then return end
+        local current = game.JobId
+        for _, s in ipairs(servers) do
+            if s.id ~= current and s.playing < s.maxPlayers then
+                TS:TeleportToPlaceInstance(placeId, s.id, lp)
+                return
+            end
+        end
+    end,
+})
