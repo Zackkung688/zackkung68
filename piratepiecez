@@ -52,15 +52,19 @@ task.spawn(function()
 end)
 
 -- Remote shortcuts
-local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-local Events  = Remotes:WaitForChild("Events")
-
 local function fireEvent(name, ...)
-    pcall(function() Events:WaitForChild(name):FireServer(...) end)
+    pcall(function(...) 
+        Events:WaitForChild(name):FireServer(...) 
+    end, ...) 
 end
+
 local function invokeRemote(name, ...)
-    pcall(function() Remotes:WaitForChild("rFunctions"):WaitForChild(name):InvokeServer(...) end)
+    local success, result = pcall(function(...)
+        return Remotes:WaitForChild("rFunctions"):WaitForChild(name):InvokeServer(...)
+    end, ...)
+    return result
 end
+
 
 -- Character references
 local Char = LP.Character or LP.CharacterAdded:Wait()
