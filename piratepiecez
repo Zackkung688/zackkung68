@@ -18,7 +18,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService   = game:GetService("TeleportService")
 local WS                = game:GetService("Workspace")
 local LP                = Players.LocalPlayer
-
+local Remotes           = ReplicatedStorage:WaitForChild("Remotes")
+local Events            = Remotes:WaitForChild("Events")
 
 -- ════════════════════════════════════════════════
 --  BACKEND
